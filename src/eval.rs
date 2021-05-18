@@ -43,6 +43,8 @@ fn apply(operation: &str, elements: Vec<Element>) -> Result<Object, EvalError> {
         "-" => sub(elements),
         "*" => mul(elements),
         "/" => div(elements),
+        "<" => lt(elements),
+        ">" => gt(elements),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -119,6 +121,34 @@ fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
         Ok(Object::Rat(sum))
     }
 }
+fn lt(elements: Vec<Element>) -> Result<Object, EvalError> {
+    if elements.len() < 2 {
+        return Err(EvalError::General(
+            "`<` requires at least two argument.".to_string(),
+        ));
+    }
+    // 引数をi64の配列に変換して集積する
+    let operands = to_num_vec(elements)?;
+    let first = operands[0];
+    let (acc, _) = operands[1..]
+        .iter()
+        .fold((true, first), |(_, prev), x| (prev < *x, *x));
+    Ok(Object::Bool(acc))
+}
+fn gt(elements: Vec<Element>) -> Result<Object, EvalError> {
+    if elements.len() < 2 {
+        return Err(EvalError::General(
+            "`>` requires at least two argument.".to_string(),
+        ));
+    }
+    // 引数をi64の配列に変換して集積する
+    let operands = to_num_vec(elements)?;
+    let first = operands[0];
+    let (acc, _) = operands[1..]
+        .iter()
+        .fold((true, first), |(_, prev), x| (prev > *x, *x));
+    Ok(Object::Bool(acc))
+}
 
 #[cfg(test)]
 mod test {
@@ -180,6 +210,22 @@ mod test {
             ("(/ 1)", Rat(Ratio::from_integer(1))),
             ("(/ 2)", Rat(Ratio::new(1, 2))),
             ("(/ 1 2 3 4 5)", Object::Rat(Ratio::new(1, 120))),
+            //
+            ("(< 1 2 )", Object::Bool(true)),
+            ("(< 2 1 )", Object::Bool(false)),
+            ("(< 1 1 )", Object::Bool(false)),
+            ("(< 1 (+ 1 1))", Object::Bool(true)),
+            ("(< (- 2 1) (+ 1 1))", Object::Bool(true)),
+            ("(< 1 2 3 4 5)", Object::Bool(true)),
+            ("(< 1 2 3 4 1)", Object::Bool(false)),
+            //
+            ("(> 2 1)", Object::Bool(true)),
+            ("(> 1 2)", Object::Bool(false)),
+            ("(> 1 1 )", Object::Bool(false)),
+            ("(> (+ 1 1) 1)", Object::Bool(true)),
+            ("(> (+ 1 1) (- 2 1))", Object::Bool(true)),
+            ("(> 1 2 3 4 5)", Object::Bool(false)),
+            ("(> 1 2 3 4 1)", Object::Bool(true)),
         ];
         for (input, expected) in tests.into_iter() {
             let object = eval(parser::parse_program(lexer::lex(input).unwrap()).unwrap()).unwrap();
@@ -202,6 +248,24 @@ mod test {
             match eval(p) {
                 Ok(_) => panic!("expected err. but ok."),
                 Err(e) => assert_eq!(expected, e),
+            }
+        }
+    }
+    #[test]
+    fn test_eval_ng_general() {
+        let tests = vec![
+            //
+            ("(< 1)", EvalError::General("fake".to_string())),
+            ("(> 1)", EvalError::General("fake".to_string())),
+        ];
+
+        for (input, _) in tests.into_iter() {
+            let l = lexer::lex(input).unwrap();
+            let p = parser::parse_program(l).unwrap();
+            match eval(p) {
+                Ok(_) => panic!("expected err. but ok."),
+                Err(EvalError::General(_)) => { /*ok*/ }
+                Err(e) => panic!(format!("expected general error. but [{:?}]", e)),
             }
         }
     }

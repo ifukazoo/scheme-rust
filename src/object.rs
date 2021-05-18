@@ -6,6 +6,8 @@ use std::fmt;
 pub enum Object {
     /// 有理数
     Rat(Rational64),
+    /// BOOLEAN
+    Bool(bool),
     /// nil
     Nil,
 }
@@ -18,6 +20,13 @@ impl fmt::Display for Object {
                     write!(f, "{}", r.numer())
                 } else {
                     write!(f, "{}/{}", r.numer(), r.denom())
+                }
+            }
+            Self::Bool(b) => {
+                if *b {
+                    write!(f, "#t")
+                } else {
+                    write!(f, "#f")
                 }
             }
             Self::Nil => write!(f, "()"),

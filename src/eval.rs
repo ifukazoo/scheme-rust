@@ -122,23 +122,18 @@ fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
     }
 }
 fn lt(elements: Vec<Element>) -> Result<Object, EvalError> {
-    if elements.len() < 2 {
-        return Err(EvalError::General(
-            "`<` requires at least two argument.".to_string(),
-        ));
-    }
-    // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
-    let first = operands[0];
-    let (acc, _) = operands[1..]
-        .iter()
-        .fold((true, first), |(_, prev), x| (prev < *x, *x));
-    Ok(Object::Bool(acc))
+    fold_cmp(elements, |a, b| a < b)
 }
 fn gt(elements: Vec<Element>) -> Result<Object, EvalError> {
+    fold_cmp(elements, |a, b| a > b)
+}
+fn fold_cmp(
+    elements: Vec<Element>,
+    cmp: fn(Rational64, Rational64) -> bool,
+) -> Result<Object, EvalError> {
     if elements.len() < 2 {
         return Err(EvalError::General(
-            "`>` requires at least two argument.".to_string(),
+            "application requires at least two argument.".to_string(),
         ));
     }
     // 引数をi64の配列に変換して集積する
@@ -146,7 +141,7 @@ fn gt(elements: Vec<Element>) -> Result<Object, EvalError> {
     let first = operands[0];
     let (acc, _) = operands[1..]
         .iter()
-        .fold((true, first), |(_, prev), x| (prev > *x, *x));
+        .fold((true, first), |(_, prev), x| (cmp(prev, *x), *x));
     Ok(Object::Bool(acc))
 }
 

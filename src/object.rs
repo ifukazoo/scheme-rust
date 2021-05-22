@@ -1,6 +1,7 @@
 extern crate num;
 use num::rational::{Ratio, Rational64};
 use std::fmt;
+use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -80,6 +81,56 @@ impl Div for Number {
     type Output = Self;
     fn div(self, other: Self) -> Self {
         calc!(self, /, other)
+    }
+}
+impl Sum for Number {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let mut s = Self::Int(0);
+        for n in iter {
+            s = s + n;
+        }
+        s
+    }
+}
+
+impl<'a> Sum<&'a Number> for Number {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        let mut s = Self::Int(0);
+        for n in iter {
+            s = s + *n;
+        }
+        s
+    }
+}
+impl Product for Number {
+    fn product<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let mut s = Self::Int(1);
+        for n in iter {
+            s = s * n;
+        }
+        s
+    }
+}
+
+impl<'a> Product<&'a Number> for Number {
+    fn product<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        let mut s = Self::Int(1);
+        for n in iter {
+            s = s * *n;
+        }
+        s
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -208,6 +259,46 @@ mod test {
         ];
         for ((l, r), expected) in tests.into_iter() {
             assert_eq!(expected, l / r)
+        }
+    }
+
+    #[test]
+    fn test_number_sum() {
+        let tests = vec![
+            (
+                vec![Number::Int(1), Number::Int(2), Number::Int(3)],
+                Number::Int(6),
+            ),
+            (
+                vec![Number::Int(2), Number::Int(3), Number::Int(-2)],
+                Number::Int(3),
+            ),
+        ];
+        for (v, expected) in tests.into_iter() {
+            assert_eq!(expected, v.iter().sum::<Number>());
+            assert_eq!(expected, v.into_iter().sum::<Number>())
+        }
+    }
+
+    #[test]
+    fn test_number_product() {
+        let tests = vec![
+            (
+                vec![Number::Int(2), Number::Int(3), Number::Int(4)],
+                Number::Int(24),
+            ),
+            (
+                vec![Number::Int(2), Number::Int(3), Number::Int(-2)],
+                Number::Int(-12),
+            ),
+            (
+                vec![Number::Int(2), Number::Int(3), Number::Int(0)],
+                Number::Int(0),
+            ),
+        ];
+        for (v, expected) in tests.into_iter() {
+            assert_eq!(expected, v.iter().product::<Number>());
+            assert_eq!(expected, v.into_iter().product::<Number>())
         }
     }
 }

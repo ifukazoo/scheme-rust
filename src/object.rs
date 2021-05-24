@@ -4,7 +4,7 @@ use std::fmt;
 use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq)]
 pub enum Number {
     /// 有理数
     Rat(Rational64),
@@ -31,6 +31,13 @@ impl Number {
         match self {
             Self::Int(n) => Ratio::from_integer(n),
             Self::Rat(r) => r,
+        }
+    }
+
+    pub fn is_zero(self) -> bool {
+        match self {
+            Self::Int(n) => n == 0,
+            Self::Rat(r) => *r.numer() == 0,
         }
     }
 }
@@ -83,6 +90,15 @@ impl Div for Number {
         calc!(self, /, other)
     }
 }
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        let lhs = self.to_rat();
+        let rhs = other.to_rat();
+        lhs == rhs
+    }
+}
+
+// into_iter().sum()
 impl Sum for Number {
     fn sum<I>(iter: I) -> Self
     where
@@ -96,6 +112,7 @@ impl Sum for Number {
     }
 }
 
+// iter().sum()
 impl<'a> Sum<&'a Number> for Number {
     fn sum<I>(iter: I) -> Self
     where
@@ -133,10 +150,10 @@ impl<'a> Product<&'a Number> for Number {
         s
     }
 }
+
+// 数をNumberに変更．コメントアウトしたところなどのチェック中
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
-    /// 有理数
-    Rat(Rational64),
     /// BOOLEAN
     Bool(bool),
     /// 数
@@ -148,13 +165,6 @@ pub enum Object {
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Rat(r) => {
-                if *r.denom() == 1 {
-                    write!(f, "{}", r.numer())
-                } else {
-                    write!(f, "{}/{}", r.numer(), r.denom())
-                }
-            }
             Self::Bool(b) => {
                 if *b {
                     write!(f, "#t")

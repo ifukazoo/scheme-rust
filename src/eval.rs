@@ -1,9 +1,8 @@
 extern crate num;
+use crate::object::Number;
 use crate::object::Object;
 use crate::parser::Atom;
 use crate::parser::Element;
-use num::rational::Ratio;
-use num::rational::Rational64;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
@@ -21,7 +20,7 @@ pub fn eval(element: Element) -> Result<Object, EvalError> {
 }
 pub fn eval_atom(atom: Atom) -> Result<Object, EvalError> {
     match atom {
-        Atom::Num(i) => Ok(Object::Rat(Ratio::from_integer(i))),
+        Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
         _ => Err(EvalError::NotImplementedSyntax),
     }
 }
@@ -48,12 +47,12 @@ fn apply(operation: &str, elements: Vec<Element>) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidApplication),
     }
 }
-fn to_num_vec(elements: Vec<Element>) -> Result<Vec<Rational64>, EvalError> {
+fn to_num_vec(elements: Vec<Element>) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {
         let obj = eval(n)?;
-        if let Object::Rat(r) = obj {
-            v.push(r);
+        if let Object::Num(n) = obj {
+            v.push(n);
         } else {
             return Err(EvalError::General(format!(
                 "can't convert to number [{:?}]",
@@ -67,13 +66,13 @@ fn add(elements: Vec<Element>) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(elements)?;
     let acc = operands.iter().sum();
-    Ok(Object::Rat(acc))
+    Ok(Object::Num(acc))
 }
 fn mul(elements: Vec<Element>) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(elements)?;
     let acc = operands.iter().product();
-    Ok(Object::Rat(acc))
+    Ok(Object::Num(acc))
 }
 fn sub(elements: Vec<Element>) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
@@ -87,10 +86,10 @@ fn sub(elements: Vec<Element>) -> Result<Object, EvalError> {
     let first = operands[0];
     // lispの引き算は引数1の場合と複数の場合で計算方法が違う．
     if operands.len() == 1 {
-        Ok(Object::Rat(-first))
+        Ok(Object::Num(Number::Int(-1) * first))
     } else {
-        let sum = operands[1..].iter().fold(first, |acc, o| acc - o);
-        Ok(Object::Rat(sum))
+        let sum = operands[1..].iter().fold(first, |acc, o| acc - *o);
+        Ok(Object::Num(sum))
     }
 }
 fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
@@ -105,20 +104,20 @@ fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
 
     if operands.len() == 1 {
         let divider = operands[0];
-        if divider == Ratio::from_integer(0) {
+        if divider.is_zero() {
             Err(EvalError::ZeroDivision)
         } else {
-            Ok(Object::Rat(Ratio::from_integer(1) / divider))
+            Ok(Object::Num(Number::Int(1) / divider))
         }
     } else {
         let mut sum = operands[0];
-        for &r in operands[1..].iter() {
-            if r == Ratio::from_integer(0) {
+        for r in operands[1..].iter() {
+            if r.is_zero() {
                 return Err(EvalError::ZeroDivision);
             }
-            sum /= r;
+            sum = sum / *r;
         }
-        Ok(Object::Rat(sum))
+        Ok(Object::Num(sum))
     }
 }
 fn lt(elements: Vec<Element>) -> Result<Object, EvalError> {
@@ -127,10 +126,7 @@ fn lt(elements: Vec<Element>) -> Result<Object, EvalError> {
 fn gt(elements: Vec<Element>) -> Result<Object, EvalError> {
     fold_cmp(elements, |a, b| a > b)
 }
-fn fold_cmp(
-    elements: Vec<Element>,
-    cmp: fn(Rational64, Rational64) -> bool,
-) -> Result<Object, EvalError> {
+fn fold_cmp(elements: Vec<Element>, cmp: fn(Number, Number) -> bool) -> Result<Object, EvalError> {
     if elements.len() < 2 {
         return Err(EvalError::General(
             "application requires at least two argument.".to_string(),
@@ -155,56 +151,50 @@ mod test {
 
     #[test]
     fn test_eval() {
+        use object::Number::Int;
+        use object::Number::Rat;
         use object::Object;
-        use object::Object::Nil;
-        use object::Object::Rat;
 
         let tests = vec![
             //
-            ("1", Rat(Ratio::from_integer(1))),
-            ("()", Nil),
-            ("(+ 1 2 )", Rat(Ratio::from_integer(3))),
-            ("(+ 1 2 3 4 5 6 7 8 9 10)", Rat(Ratio::from_integer(55))),
-            ("(+ 1)", Rat(Ratio::from_integer(1))),
-            ("(+)", Rat(Ratio::from_integer(0))),
+            ("1", Object::Num(Int(1))),
+            ("()", Object::Nil),
+            ("(+ 1 2 )", Object::Num(Int(3))),
+            ("(+ 1 2 3 4 5 6 7 8 9 10)", Object::Num(Int(55))),
+            ("(+ 1)", Object::Num(Int(1))),
+            ("(+)", Object::Num(Int(0))),
             //
-            ("-1", Rat(Ratio::from_integer(-1))),
-            ("(+ +1 2)", Rat(Ratio::from_integer(3))),
-            ("(+ 0 -1)", Rat(Ratio::from_integer(-1))),
-            (
-                "(+ +1 +2 +3 +4 +5 +6 +7 +8 +9 +10)",
-                Rat(Ratio::from_integer(55)),
-            ),
-            (
-                "(+ -1 -2 -3 -4 -5 -6 -7 -8 -9 -10)",
-                Rat(Ratio::from_integer(-55)),
-            ),
+            ("-1", Object::Num(Int(-1))),
+            ("(+ +1 2)", Object::Num(Int(3))),
+            ("(+ 0 -1)", Object::Num(Int(-1))),
+            ("(+ +1 +2 +3 +4 +5 +6 +7 +8 +9 +10)", Object::Num(Int(55))),
+            ("(+ -1 -2 -3 -4 -5 -6 -7 -8 -9 -10)", Object::Num(Int(-55))),
             //
-            ("(- 1)", Rat(Ratio::from_integer(-1))),
-            ("(- 0 1 )", Rat(Ratio::from_integer(-1))),
-            ("(- 1 2)", Rat(Ratio::from_integer(-1))),
-            ("(- 1 2 3 4 5 6 7 8 9 10)", Rat(Ratio::from_integer(-53))),
-            ("(- +2 +2 +2)", Rat(Ratio::from_integer(-2))),
+            ("(- 1)", Object::Num(Int(-1))),
+            ("(- 0 1 )", Object::Num(Int(-1))),
+            ("(- 1 2)", Object::Num(Int(-1))),
+            ("(- 1 2 3 4 5 6 7 8 9 10)", Object::Num(Int(-53))),
+            ("(- +2 +2 +2)", Object::Num(Int(-2))),
             //
-            ("(+ (+ 1 2) 3)", Rat(Ratio::from_integer(6))),
-            ("(- (+ (+ 1 2) 3) 5)", Rat(Ratio::from_integer(1))),
+            ("(+ (+ 1 2) 3)", Object::Num(Int(6))),
+            ("(- (+ (+ 1 2) 3) 5)", Object::Num(Int(1))),
             //
-            ("(*)", Rat(Ratio::from_integer(1))),
-            ("(* 1)", Rat(Ratio::from_integer(1))),
-            ("(* 0 1 )", Rat(Ratio::from_integer(0))),
-            ("(* 1 2)", Rat(Ratio::from_integer(2))),
-            ("(* 2 2)", Rat(Ratio::from_integer(4))),
-            ("(* 2 -2)", Rat(Ratio::from_integer(-4))),
-            ("(* -2 2)", Rat(Ratio::from_integer(-4))),
-            ("(* -2 -2)", Rat(Ratio::from_integer(4))),
-            ("(* 2 3 4)", Rat(Ratio::from_integer(24))),
-            ("(+ (* 2 3) 5)", Rat(Ratio::from_integer(11))),
+            ("(*)", Object::Num(Int(1))),
+            ("(* 1)", Object::Num(Int(1))),
+            ("(* 0 1 )", Object::Num(Int(0))),
+            ("(* 1 2)", Object::Num(Int(2))),
+            ("(* 2 2)", Object::Num(Int(4))),
+            ("(* 2 -2)", Object::Num(Int(-4))),
+            ("(* -2 2)", Object::Num(Int(-4))),
+            ("(* -2 -2)", Object::Num(Int(4))),
+            ("(* 2 3 4)", Object::Num(Int(24))),
+            ("(+ (* 2 3) 5)", Object::Num(Int(11))),
             //
-            ("(/ 1 2 )", Object::Rat(Ratio::new(1, 2))),
-            ("(/ 4 2)", Rat(Ratio::from_integer(2))),
-            ("(/ 1)", Rat(Ratio::from_integer(1))),
-            ("(/ 2)", Rat(Ratio::new(1, 2))),
-            ("(/ 1 2 3 4 5)", Object::Rat(Ratio::new(1, 120))),
+            ("(/ 1 2 )", Object::Num(Rat(Ratio::new(1, 2)))),
+            ("(/ 4 2)", Object::Num(Int(2))),
+            ("(/ 1)", Object::Num(Int(1))),
+            ("(/ 2)", Object::Num(Rat(Ratio::new(1, 2)))),
+            ("(/ 1 2 3 4 5)", Object::Num(Rat(Ratio::new(1, 120)))),
             //
             ("(< 1 2 )", Object::Bool(true)),
             ("(< 2 1 )", Object::Bool(false)),

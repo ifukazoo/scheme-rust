@@ -13,15 +13,18 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = vec![];
     while let Some(&c) = input.peek() {
         if c.is_digit(10) {
-            let i = lex_int(&mut input);
-            tokens.push(Token::INT(i));
+            let token = lex_int(&mut input);
+            tokens.push(token);
         } else if c.is_ascii_whitespace() {
             // 空白は飛ばす
             input.next().unwrap();
+        } else if c.is_alphabetic() {
+            let token = lex_alpha(&mut input);
+            tokens.push(token);
         } else {
             match c {
                 '(' | ')' | '*' | '/' | '<' | '>' => {
-                    tokens.push(Token::new(c).unwrap());
+                    tokens.push(Token::from_char(c).unwrap());
                     input.next().unwrap();
                 }
                 '+' | '-' => {
@@ -31,23 +34,28 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
                     match input.peek() {
                         Some(next) => {
                             if next.is_digit(10) {
-                                let mut i = lex_int(&mut input);
-                                if c == '-' {
-                                    i = -i;
-                                }
-                                tokens.push(Token::INT(i))
+                                match lex_int(&mut input) {
+                                    Token::INT(i) => {
+                                        if c == '-' {
+                                            tokens.push(Token::INT(-i))
+                                        } else {
+                                            tokens.push(Token::INT(i))
+                                        }
+                                    }
+                                    _ => unreachable!(),
+                                };
                             } else {
                                 // "+@#.."
                                 // 次の文字は刈り取らず，記号だけを取り込む
-                                tokens.push(Token::new(c).unwrap());
+                                tokens.push(Token::from_char(c).unwrap());
                             }
                         }
                         // "+"
                         // 次の文字は刈り取らず，記号だけを取り込む
-                        None => tokens.push(Token::new(c).unwrap()),
+                        None => tokens.push(Token::from_char(c).unwrap()),
                     }
                 }
-                e => match Token::new(e) {
+                e => match Token::from_char(e) {
                     Ok(t) => tokens.push(t),
                     Err(_) => return Err(LexError::IllegalToken(e)),
                 },
@@ -57,7 +65,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
     Ok(tokens)
 }
 
-fn lex_int<Tokens>(input: &mut Peekable<Tokens>) -> i64
+fn lex_int<Tokens>(input: &mut Peekable<Tokens>) -> Token
 where
     Tokens: Iterator<Item = char>,
 {
@@ -70,7 +78,28 @@ where
             break;
         }
     }
-    buf.parse::<i64>().unwrap()
+    let i = buf.parse::<i64>().unwrap();
+    Token::INT(i)
+}
+
+fn lex_alpha<Tokens>(input: &mut Peekable<Tokens>) -> Token
+where
+    Tokens: Iterator<Item = char>,
+{
+    let mut s = String::new();
+
+    while let Some(&c) = input.peek() {
+        if c.is_alphabetic() {
+            s.push(c);
+            input.next().unwrap();
+        } else {
+            break;
+        }
+    }
+    match s.as_str() {
+        "begin" => Token::BEGIN,
+        _ => Token::VAR(s),
+    }
 }
 
 #[cfg(test)]
@@ -97,6 +126,10 @@ mod test {
                 ],
             ),
             ("() ", vec![LPAREN, RPAREN]),
+            (
+                "(begin abc) ",
+                vec![LPAREN, BEGIN, VAR("abc".to_string()), RPAREN],
+            ),
         ];
         for (input, expected) in tests.into_iter() {
             assert_eq!(expected, lex(input).unwrap());

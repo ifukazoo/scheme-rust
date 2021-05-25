@@ -113,7 +113,7 @@ impl Sum for Number {
 }
 
 // iter().sum()
-impl<'a> Sum<&'a Number> for Number {
+impl<'a> Sum<&'a Self> for Number {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = &'a Self>,
@@ -138,7 +138,7 @@ impl Product for Number {
     }
 }
 
-impl<'a> Product<&'a Number> for Number {
+impl<'a> Product<&'a Self> for Number {
     fn product<I>(iter: I) -> Self
     where
         I: Iterator<Item = &'a Self>,

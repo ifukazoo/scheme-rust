@@ -58,6 +58,7 @@ where
         Token::SLASH => Ok(Atom::Ope("/")),
         Token::GT => Ok(Atom::Ope(">")),
         Token::LT => Ok(Atom::Ope("<")),
+        Token::BEGIN => Ok(Atom::Ope("begin")),
         _ => Err(ParseError::IllegalSyntax(t)),
     }
 }
@@ -115,6 +116,22 @@ mod test {
                 Element::V(vec![
                     Element::A(Atom::Ope("+")),
                     Element::A(Atom::Num(1)),
+                    Element::V(vec![
+                        Element::A(Atom::Ope("+")),
+                        Element::A(Atom::Num(2)),
+                        Element::A(Atom::Num(3)),
+                    ]),
+                ]),
+            ),
+            (
+                "(begin (+ 2 1) (+ 2 3))",
+                Element::V(vec![
+                    Element::A(Atom::Ope("begin")),
+                    Element::V(vec![
+                        Element::A(Atom::Ope("+")),
+                        Element::A(Atom::Num(2)),
+                        Element::A(Atom::Num(1)),
+                    ]),
                     Element::V(vec![
                         Element::A(Atom::Ope("+")),
                         Element::A(Atom::Num(2)),

@@ -10,11 +10,14 @@ pub enum Token {
     SLASH,
     GT,
     LT,
+    BEGIN,
+    /// 変数
+    VAR(String),
     // STRING 'string'
 }
 
 impl Token {
-    pub fn new(c: char) -> Result<Self, ()> {
+    pub fn from_char(c: char) -> Result<Self, ()> {
         match c {
             ')' => Ok(Self::RPAREN),
             '(' => Ok(Self::LPAREN),

@@ -44,6 +44,13 @@ fn apply(operation: &str, elements: Vec<Element>) -> Result<Object, EvalError> {
         "/" => div(elements),
         "<" => lt(elements),
         ">" => gt(elements),
+        "begin" => {
+            let mut result = Object::Nil;
+            for v in elements.into_iter() {
+                result = eval(v)?;
+            }
+            Ok(result)
+        }
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -211,6 +218,10 @@ mod test {
             ("(> (+ 1 1) (- 2 1))", Object::Bool(true)),
             ("(> 1 2 3 4 5)", Object::Bool(false)),
             ("(> 1 2 3 4 1)", Object::Bool(true)),
+            //
+            ("(begin (+ 2 1))", Object::Num(Int(3))),
+            ("(begin (+ 2 1) (+ 2 3))", Object::Num(Int(5))),
+            ("(begin (+ 2 1) (+ 2 3) ())", Object::Nil),
         ];
         for (input, expected) in tests.into_iter() {
             let object = eval(parser::parse_program(lexer::lex(input).unwrap()).unwrap()).unwrap();

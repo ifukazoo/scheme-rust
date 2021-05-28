@@ -1,8 +1,10 @@
 extern crate num;
+use crate::env::*;
 use crate::object::Number;
 use crate::object::Object;
 use crate::parser::Atom;
 use crate::parser::Element;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
@@ -12,52 +14,52 @@ pub enum EvalError {
     General(String),
 }
 
-pub fn eval(element: Element) -> Result<Object, EvalError> {
+pub fn eval(element: Element, env: &RefEnv) -> Result<Object, EvalError> {
     match element {
-        Element::A(a) => eval_atom(a),
-        Element::V(v) => eval_vector(v),
+        Element::A(a) => eval_atom(a, env),
+        Element::V(v) => eval_vector(v, env),
     }
 }
-pub fn eval_atom(atom: Atom) -> Result<Object, EvalError> {
+pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
     match atom {
         Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
         _ => Err(EvalError::NotImplementedSyntax),
     }
 }
-fn eval_vector(elements: Vec<Element>) -> Result<Object, EvalError> {
+fn eval_vector(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     if elements.is_empty() {
         Ok(Object::Nil)
     } else {
         let op = &elements[0];
         let operand = &elements[1..];
         match op {
-            Element::A(Atom::Ope(o)) => apply(o, operand.to_vec()),
+            Element::A(Atom::Ope(o)) => apply(o, operand.to_vec(), env),
             _ => Err(EvalError::InvalidApplication),
         }
     }
 }
-fn apply(operation: &str, elements: Vec<Element>) -> Result<Object, EvalError> {
+fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     match operation {
-        "+" => add(elements),
-        "-" => sub(elements),
-        "*" => mul(elements),
-        "/" => div(elements),
-        "<" => lt(elements),
-        ">" => gt(elements),
+        "+" => add(elements, env),
+        "-" => sub(elements, env),
+        "*" => mul(elements, env),
+        "/" => div(elements, env),
+        "<" => lt(elements, env),
+        ">" => gt(elements, env),
         "begin" => {
             let mut result = Object::Nil;
             for v in elements.into_iter() {
-                result = eval(v)?;
+                result = eval(v, env)?;
             }
             Ok(result)
         }
         _ => Err(EvalError::InvalidApplication),
     }
 }
-fn to_num_vec(elements: Vec<Element>) -> Result<Vec<Number>, EvalError> {
+fn to_num_vec(elements: Vec<Element>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {
-        let obj = eval(n)?;
+        let obj = eval(n, env)?;
         if let Object::Num(n) = obj {
             v.push(n);
         } else {
@@ -69,19 +71,19 @@ fn to_num_vec(elements: Vec<Element>) -> Result<Vec<Number>, EvalError> {
     }
     Ok(v)
 }
-fn add(elements: Vec<Element>) -> Result<Object, EvalError> {
+fn add(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
+    let operands = to_num_vec(elements, env)?;
     let acc = operands.iter().sum();
     Ok(Object::Num(acc))
 }
-fn mul(elements: Vec<Element>) -> Result<Object, EvalError> {
+fn mul(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
+    let operands = to_num_vec(elements, env)?;
     let acc = operands.iter().product();
     Ok(Object::Num(acc))
 }
-fn sub(elements: Vec<Element>) -> Result<Object, EvalError> {
+fn sub(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if elements.is_empty() {
         return Err(EvalError::General(
@@ -89,7 +91,7 @@ fn sub(elements: Vec<Element>) -> Result<Object, EvalError> {
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
+    let operands = to_num_vec(elements, env)?;
     let first = operands[0];
     // lispの引き算は引数1の場合と複数の場合で計算方法が違う．
     if operands.len() == 1 {
@@ -99,7 +101,7 @@ fn sub(elements: Vec<Element>) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
+fn div(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if elements.is_empty() {
         return Err(EvalError::General(
@@ -107,7 +109,7 @@ fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
+    let operands = to_num_vec(elements, env)?;
 
     if operands.len() == 1 {
         let divider = operands[0];
@@ -127,20 +129,24 @@ fn div(elements: Vec<Element>) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn lt(elements: Vec<Element>) -> Result<Object, EvalError> {
-    fold_cmp(elements, |a, b| a < b)
+fn lt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    fold_cmp(elements, |a, b| a < b, env)
 }
-fn gt(elements: Vec<Element>) -> Result<Object, EvalError> {
-    fold_cmp(elements, |a, b| a > b)
+fn gt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    fold_cmp(elements, |a, b| a > b, env)
 }
-fn fold_cmp(elements: Vec<Element>, cmp: fn(Number, Number) -> bool) -> Result<Object, EvalError> {
+fn fold_cmp(
+    elements: Vec<Element>,
+    cmp: fn(Number, Number) -> bool,
+    env: &RefEnv,
+) -> Result<Object, EvalError> {
     if elements.len() < 2 {
         return Err(EvalError::General(
             "application requires at least two argument.".to_string(),
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements)?;
+    let operands = to_num_vec(elements, env)?;
     let first = operands[0];
     let (acc, _) = operands[1..]
         .iter()
@@ -151,6 +157,7 @@ fn fold_cmp(elements: Vec<Element>, cmp: fn(Number, Number) -> bool) -> Result<O
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::env;
     use crate::lexer;
     use crate::object;
     use crate::parser;
@@ -223,8 +230,13 @@ mod test {
             ("(begin (+ 2 1) (+ 2 3))", Object::Num(Int(5))),
             ("(begin (+ 2 1) (+ 2 3) ())", Object::Nil),
         ];
+        let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
-            let object = eval(parser::parse_program(lexer::lex(input).unwrap()).unwrap()).unwrap();
+            let object = eval(
+                parser::parse_program(lexer::lex(input).unwrap()).unwrap(),
+                &env,
+            )
+            .unwrap();
             assert_eq!(expected, object)
         }
     }
@@ -238,10 +250,11 @@ mod test {
             ("(/ 0)", EvalError::ZeroDivision),
         ];
 
+        let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
             let l = lexer::lex(input).unwrap();
             let p = parser::parse_program(l).unwrap();
-            match eval(p) {
+            match eval(p, &env) {
                 Ok(_) => panic!("expected err. but ok."),
                 Err(e) => assert_eq!(expected, e),
             }
@@ -255,10 +268,11 @@ mod test {
             ("(> 1)", EvalError::General("fake".to_string())),
         ];
 
+        let env = env::new_env(HashMap::new());
         for (input, _) in tests.into_iter() {
             let l = lexer::lex(input).unwrap();
             let p = parser::parse_program(l).unwrap();
-            match eval(p) {
+            match eval(p, &env) {
                 Ok(_) => panic!("expected err. but ok."),
                 Err(EvalError::General(_)) => { /*ok*/ }
                 Err(e) => panic!(format!("expected general error. but [{:?}]", e)),

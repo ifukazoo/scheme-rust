@@ -4,6 +4,32 @@ use std::fmt;
 use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Object {
+    /// BOOLEAN
+    Bool(bool),
+    /// 数
+    Num(Number),
+    /// nil
+    Nil,
+}
+
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Bool(b) => {
+                if *b {
+                    write!(f, "#t")
+                } else {
+                    write!(f, "#f")
+                }
+            }
+            Self::Num(n) => write!(f, "{}", n),
+            Self::Nil => write!(f, "()"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq)]
 pub enum Number {
     /// 有理数
@@ -148,33 +174,6 @@ impl<'a> Product<&'a Self> for Number {
             s = s * *n;
         }
         s
-    }
-}
-
-// 数をNumberに変更．コメントアウトしたところなどのチェック中
-#[derive(Debug, Clone, PartialEq)]
-pub enum Object {
-    /// BOOLEAN
-    Bool(bool),
-    /// 数
-    Num(Number),
-    /// nil
-    Nil,
-}
-
-impl fmt::Display for Object {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Bool(b) => {
-                if *b {
-                    write!(f, "#t")
-                } else {
-                    write!(f, "#f")
-                }
-            }
-            Self::Num(n) => write!(f, "{}", n),
-            Self::Nil => write!(f, "()"),
-        }
     }
 }
 

@@ -98,6 +98,7 @@ where
     }
     match s.as_str() {
         "begin" => Token::BEGIN,
+        "define" => Token::DEFINE,
         _ => Token::VAR(s),
     }
 }
@@ -129,6 +130,10 @@ mod test {
             (
                 "(begin abc) ",
                 vec![LPAREN, BEGIN, VAR("abc".to_string()), RPAREN],
+            ),
+            (
+                "(define abc) ",
+                vec![LPAREN, DEFINE, VAR("abc".to_string()), RPAREN],
             ),
         ];
         for (input, expected) in tests.into_iter() {

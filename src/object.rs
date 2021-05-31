@@ -12,6 +12,8 @@ pub enum Object {
     Num(Number),
     /// nil
     Nil,
+    /// 未定義．
+    Undef,
 }
 
 impl fmt::Display for Object {
@@ -26,6 +28,7 @@ impl fmt::Display for Object {
             }
             Self::Num(n) => write!(f, "{}", n),
             Self::Nil => write!(f, "()"),
+            Self::Undef => write!(f, "#<undef>"),
         }
     }
 }

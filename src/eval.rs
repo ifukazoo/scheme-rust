@@ -1,16 +1,23 @@
 extern crate num;
+use crate::env;
 use crate::env::*;
 use crate::object::Number;
 use crate::object::Object;
 use crate::parser::Atom;
 use crate::parser::Element;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
+    /// 未実装の構文 (本家のschemeは実装している)
     NotImplementedSyntax,
+    /// 演算子でないものが演算子として使用された
     InvalidApplication,
+    /// ゼロ除算
     ZeroDivision,
+    /// 構文エラー
+    InvalidSyntax,
+    /// 不明な変数
+    UnboundVariable(String),
     General(String),
 }
 
@@ -23,6 +30,10 @@ pub fn eval(element: Element, env: &RefEnv) -> Result<Object, EvalError> {
 pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
     match atom {
         Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
+        Atom::Ident(i) => match env::get_value(env, &i) {
+            Some(obj) => Ok(obj),
+            None => Err(EvalError::UnboundVariable(i.to_string())),
+        },
         _ => Err(EvalError::NotImplementedSyntax),
     }
 }
@@ -34,6 +45,13 @@ fn eval_vector(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError
         let operand = &elements[1..];
         match op {
             Element::A(Atom::Ope(o)) => apply(o, operand.to_vec(), env),
+            Element::A(Atom::Ident(i)) => {
+                if let Some(obj) = env::get_value(env, i) {
+                    Ok(obj)
+                } else {
+                    Err(EvalError::UnboundVariable(i.to_string()))
+                }
+            }
             _ => Err(EvalError::InvalidApplication),
         }
     }
@@ -46,13 +64,8 @@ fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object
         "/" => div(elements, env),
         "<" => lt(elements, env),
         ">" => gt(elements, env),
-        "begin" => {
-            let mut result = Object::Nil;
-            for v in elements.into_iter() {
-                result = eval(v, env)?;
-            }
-            Ok(result)
-        }
+        "begin" => begin(elements, env),
+        "define" => define(elements, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -135,6 +148,38 @@ fn lt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
 fn gt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(elements, |a, b| a > b, env)
 }
+fn begin(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    let mut result = Object::Nil;
+    for v in elements.into_iter() {
+        result = eval(v, env)?;
+    }
+    Ok(result)
+}
+fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    let var = match elements.get(0).unwrap() {
+        // (define (+ 1 2) ...)
+        Element::V(_) => return Err(EvalError::NotImplementedSyntax),
+        Element::A(a) => match a {
+            // (define 1 ...)
+            Atom::Num(_) => return Err(EvalError::InvalidSyntax),
+            // (define + ...)
+            Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
+            // (define a ...)
+            Atom::Ident(i) => i,
+        },
+    };
+    if elements.len() == 1 {
+        env::set_value(env, var, Object::Undef);
+        Ok(Object::Undef)
+    } else if elements.len() == 2 {
+        let value = elements.get(1).unwrap();
+        let value = eval(value.clone(), env)?;
+        env::set_value(env, var, value);
+        Ok(Object::Undef)
+    } else {
+        Err(EvalError::InvalidSyntax)
+    }
+}
 fn fold_cmp(
     elements: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -162,6 +207,7 @@ mod test {
     use crate::object;
     use crate::parser;
     use num::rational::Ratio;
+    use std::collections::HashMap;
 
     #[test]
     fn test_eval() {
@@ -229,6 +275,11 @@ mod test {
             ("(begin (+ 2 1))", Object::Num(Int(3))),
             ("(begin (+ 2 1) (+ 2 3))", Object::Num(Int(5))),
             ("(begin (+ 2 1) (+ 2 3) ())", Object::Nil),
+            //
+            ("(begin (define a) a)", Object::Undef),
+            ("(begin (define a 1) a)", Object::Num(Int(1))),
+            ("(begin (define a (+ 1 2)) a)", Object::Num(Int(3))),
+            ("(define a)", Object::Undef),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -248,6 +299,11 @@ mod test {
             ("(1 1 2)", EvalError::InvalidApplication),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),
+            ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
+            ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
+            ("(define 1)", EvalError::InvalidSyntax),
+            ("(define + 2)", EvalError::NotImplementedSyntax),
+            ("(define a 1 2)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

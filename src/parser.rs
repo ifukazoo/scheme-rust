@@ -18,8 +18,8 @@ pub enum Atom {
     // Str(String)
     // 文字列. 'hello'
 
-    // Ident(String)
     // その他の変数
+    Ident(String),
 }
 
 // 構文解析エラー
@@ -59,6 +59,8 @@ where
         Token::GT => Ok(Atom::Ope(">")),
         Token::LT => Ok(Atom::Ope("<")),
         Token::BEGIN => Ok(Atom::Ope("begin")),
+        Token::DEFINE => Ok(Atom::Ope("define")),
+        Token::VAR(s) => Ok(Atom::Ident(s)),
         _ => Err(ParseError::IllegalSyntax(t)),
     }
 }
@@ -123,6 +125,7 @@ mod test {
                     ]),
                 ]),
             ),
+            ("+", Element::A(Atom::Ope("+"))),
             (
                 "(begin (+ 2 1) (+ 2 3))",
                 Element::V(vec![
@@ -139,7 +142,19 @@ mod test {
                     ]),
                 ]),
             ),
-            ("+", Element::A(Atom::Ope("+"))),
+            (
+                r#"
+                (begin
+                    (define abc)
+                )"#,
+                Element::V(vec![
+                    Element::A(Atom::Ope("begin")),
+                    Element::V(vec![
+                        Element::A(Atom::Ope("define")),
+                        Element::A(Atom::Ident("abc".to_string())),
+                    ]),
+                ]),
+            ),
         ];
         for (input, expected) in tests.into_iter() {
             let program = parse_program(lexer::lex(input).unwrap()).unwrap();

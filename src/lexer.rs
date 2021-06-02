@@ -96,10 +96,21 @@ where
             break;
         }
     }
-    match s.as_str() {
-        "begin" => Token::BEGIN,
-        "define" => Token::DEFINE,
-        _ => Token::VAR(s),
+    if let Some('!') = input.peek() {
+        input.next().unwrap();
+        match s.as_str() {
+            "set" => Token::SET,
+            _ => {
+                s.push('!');
+                Token::VAR(s)
+            }
+        }
+    } else {
+        match s.as_str() {
+            "begin" => Token::BEGIN,
+            "define" => Token::DEFINE,
+            _ => Token::VAR(s),
+        }
     }
 }
 
@@ -134,6 +145,20 @@ mod test {
             (
                 "(define abc) ",
                 vec![LPAREN, DEFINE, VAR("abc".to_string()), RPAREN],
+            ),
+            (
+                "(set! abc 1) ",
+                vec![LPAREN, SET, VAR("abc".to_string()), INT(1), RPAREN],
+            ),
+            (
+                "(get! abc 1) ",
+                vec![
+                    LPAREN,
+                    VAR("get!".to_string()),
+                    VAR("abc".to_string()),
+                    INT(1),
+                    RPAREN,
+                ],
             ),
         ];
         for (input, expected) in tests.into_iter() {

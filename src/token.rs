@@ -12,6 +12,7 @@ pub enum Token {
     LT,
     BEGIN,
     DEFINE,
+    SET,
     /// 変数
     VAR(String),
     // STRING 'string'

@@ -66,6 +66,7 @@ fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object
         ">" => gt(elements, env),
         "begin" => begin(elements, env),
         "define" => define(elements, env),
+        "set" => set(elements, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -154,6 +155,30 @@ fn begin(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         result = eval(v, env)?;
     }
     Ok(result)
+}
+fn set(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if elements.len() != 2 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let symbol = match elements.get(0).unwrap() {
+        // (set! (+ 1 2) ...)
+        Element::V(_) => return Err(EvalError::InvalidSyntax),
+        Element::A(a) => match a {
+            // (set! 1 ...)
+            Atom::Num(_) => return Err(EvalError::InvalidSyntax),
+            // (set! + ...)
+            Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
+            // (set! a ...)
+            Atom::Ident(i) => match env::get_value(env, i) {
+                Some(_) => i,
+                None => return Err(EvalError::UnboundVariable(i.to_string())),
+            },
+        },
+    };
+    let value = elements.get(1).unwrap();
+    let value = eval(value.clone(), env)?;
+    env::set_value(env, symbol, value.clone());
+    Ok(value)
 }
 fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let var = match elements.get(0).unwrap() {
@@ -280,6 +305,9 @@ mod test {
             ("(begin (define a 1) a)", Object::Num(Int(1))),
             ("(begin (define a (+ 1 2)) a)", Object::Num(Int(3))),
             ("(define a)", Object::Undef),
+            //
+            ("(begin (define a) (set! a 1) a)", Object::Num(Int(1))),
+            ("(begin (define a) (set! a (+ 1 2)) a)", Object::Num(Int(3))),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

@@ -109,6 +109,7 @@ where
         match s.as_str() {
             "begin" => Token::BEGIN,
             "define" => Token::DEFINE,
+            "cons" => Token::CONS,
             _ => Token::VAR(s),
         }
     }
@@ -160,6 +161,7 @@ mod test {
                     RPAREN,
                 ],
             ),
+            ("(cons 1 2) ", vec![LPAREN, CONS, INT(1), INT(2), RPAREN]),
         ];
         for (input, expected) in tests.into_iter() {
             assert_eq!(expected, lex(input).unwrap());

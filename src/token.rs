@@ -13,6 +13,7 @@ pub enum Token {
     BEGIN,
     DEFINE,
     SET,
+    CONS,
     /// 変数
     VAR(String),
     // STRING 'string'

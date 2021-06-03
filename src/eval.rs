@@ -1,8 +1,7 @@
 extern crate num;
 use crate::env;
 use crate::env::*;
-use crate::object::Number;
-use crate::object::Object;
+use crate::object::*;
 use crate::parser::Atom;
 use crate::parser::Element;
 
@@ -67,6 +66,7 @@ fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object
         "begin" => begin(elements, env),
         "define" => define(elements, env),
         "set" => set(elements, env),
+        "cons" => cons(elements, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -205,6 +205,16 @@ fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Err(EvalError::InvalidSyntax)
     }
 }
+fn cons(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if elements.len() != 2 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let lhs = elements.get(0).unwrap();
+    let lhs = eval(lhs.clone(), env)?;
+    let rhs = elements.get(1).unwrap();
+    let rhs = eval(rhs.clone(), env)?;
+    Ok(create_pair(lhs, rhs))
+}
 fn fold_cmp(
     elements: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -308,6 +318,11 @@ mod test {
             //
             ("(begin (define a) (set! a 1) a)", Object::Num(Int(1))),
             ("(begin (define a) (set! a (+ 1 2)) a)", Object::Num(Int(3))),
+            //
+            (
+                "(cons 1 2)",
+                object::create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

@@ -10,10 +10,16 @@ pub enum Object {
     Bool(bool),
     /// 数
     Num(Number),
+    /// 数
+    Pair(Box<Object>, Box<Object>),
     /// nil
     Nil,
     /// 未定義．
     Undef,
+}
+
+pub fn create_pair(lhs: Object, rhs: Object) -> Object {
+    Object::Pair(Box::new(lhs), Box::new(rhs))
 }
 
 impl fmt::Display for Object {
@@ -27,6 +33,18 @@ impl fmt::Display for Object {
                 }
             }
             Self::Num(n) => write!(f, "{}", n),
+            Self::Pair(lhs, rhs) => {
+                write!(f, "(")?;
+                write!(f, "{} ", lhs)?;
+                match **rhs {
+                    Object::Bool(_) | Object::Num(_) | Object::Undef => {
+                        write!(f, ".")?;
+                    }
+                    _ => {}
+                };
+                write!(f, "{}", rhs)?;
+                write!(f, ")")
+            }
             Self::Nil => write!(f, "()"),
             Self::Undef => write!(f, "#<undef>"),
         }

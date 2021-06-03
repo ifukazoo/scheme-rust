@@ -241,14 +241,15 @@ mod test {
     use crate::lexer;
     use crate::object;
     use crate::parser;
-    use num::rational::Ratio;
-    use std::collections::HashMap;
 
     #[test]
     fn test_eval() {
+        use num::rational::Ratio;
+        use object::create_pair;
         use object::Number::Int;
         use object::Number::Rat;
         use object::Object;
+        use std::collections::HashMap;
 
         let tests = vec![
             //
@@ -321,7 +322,12 @@ mod test {
             //
             (
                 "(cons 1 2)",
-                object::create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
+                create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
+            ),
+            //
+            (
+                "(car (cons 1 2))",
+                create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
             ),
         ];
         let env = env::new_env(HashMap::new());
@@ -336,6 +342,8 @@ mod test {
     }
     #[test]
     fn test_eval_ng() {
+        use std::collections::HashMap;
+
         let tests = vec![
             //
             ("+", EvalError::NotImplementedSyntax),
@@ -361,6 +369,8 @@ mod test {
     }
     #[test]
     fn test_eval_ng_general() {
+        use std::collections::HashMap;
+
         let tests = vec![
             //
             ("(< 1)", EvalError::General("fake".to_string())),

@@ -409,6 +409,7 @@ mod test {
             ("(1 1 2)", EvalError::InvalidApplication),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),
+            ("(define)", EvalError::InvalidSyntax),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
             ("(define 1)", EvalError::InvalidSyntax),
@@ -416,6 +417,7 @@ mod test {
             ("(define a 1 2)", EvalError::InvalidSyntax),
             ("(car 1)", EvalError::InvalidSyntax),
             ("(car 1 2)", EvalError::InvalidSyntax),
+            ("(list)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

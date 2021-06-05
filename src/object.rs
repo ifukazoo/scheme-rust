@@ -18,7 +18,7 @@ pub enum Object {
     Undef,
 }
 
-pub fn create_pair(lhs: Object, rhs: Object) -> Object {
+pub fn cons_pair(lhs: Object, rhs: Object) -> Object {
     Object::Pair(Box::new(lhs), Box::new(rhs))
 }
 

@@ -215,7 +215,7 @@ fn cons(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let lhs = eval(lhs.clone(), env)?;
     let rhs = args.get(1).unwrap();
     let rhs = eval(rhs.clone(), env)?;
-    Ok(create_pair(lhs, rhs))
+    Ok(cons_pair(lhs, rhs))
 }
 fn car(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
@@ -269,7 +269,7 @@ mod test {
     #[test]
     fn test_eval() {
         use num::rational::Ratio;
-        use object::create_pair;
+        use object::cons_pair;
         use object::Number::Int;
         use object::Number::Rat;
         use object::Object;
@@ -346,7 +346,7 @@ mod test {
             //
             (
                 "(cons 1 2)",
-                create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
+                cons_pair(Object::Num(Int(1)), Object::Num(Int(2))),
             ),
             //
             ("(car (cons 1 2))", Object::Num(Int(1))),
@@ -358,9 +358,9 @@ mod test {
             ("(car (cons 1 (cons 2 (cons 3 ()))))", Object::Num(Int(1))),
             (
                 "(cdr (cons 1 (cons 2 (cons 3 ()))))",
-                create_pair(
+                cons_pair(
                     Object::Num(Int(2)),
-                    create_pair(Object::Num(Int(3)), Object::Nil),
+                    cons_pair(Object::Num(Int(3)), Object::Nil),
                 ),
             ),
         ];

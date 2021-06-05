@@ -152,7 +152,7 @@ fn gt(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
 fn begin(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    let mut result = Object::Nil;
+    let mut result = Object::Num(Number::Int(0));
     for v in args.into_iter() {
         result = eval(v, env)?;
     }
@@ -183,6 +183,9 @@ fn set(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     Ok(value)
 }
 fn define(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax);
+    }
     let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
         Element::V(_) => return Err(EvalError::NotImplementedSyntax),

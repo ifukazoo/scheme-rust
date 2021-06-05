@@ -55,20 +55,20 @@ fn eval_vector(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError
         }
     }
 }
-fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     match operation {
-        "+" => add(elements, env),
-        "-" => sub(elements, env),
-        "*" => mul(elements, env),
-        "/" => div(elements, env),
-        "<" => lt(elements, env),
-        ">" => gt(elements, env),
-        "begin" => begin(elements, env),
-        "define" => define(elements, env),
-        "set" => set(elements, env),
-        "cons" => cons(elements, env),
-        "car" => car(elements, env),
-        "cdr" => cdr(elements, env),
+        "+" => add(args, env),
+        "-" => sub(args, env),
+        "*" => mul(args, env),
+        "/" => div(args, env),
+        "<" => lt(args, env),
+        ">" => gt(args, env),
+        "begin" => begin(args, env),
+        "define" => define(args, env),
+        "set" => set(args, env),
+        "cons" => cons(args, env),
+        "car" => car(args, env),
+        "cdr" => cdr(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -87,27 +87,27 @@ fn to_num_vec(elements: Vec<Element>, env: &RefEnv) -> Result<Vec<Number>, EvalE
     }
     Ok(v)
 }
-fn add(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn add(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements, env)?;
+    let operands = to_num_vec(args, env)?;
     let acc = operands.iter().sum();
     Ok(Object::Num(acc))
 }
-fn mul(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn mul(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements, env)?;
+    let operands = to_num_vec(args, env)?;
     let acc = operands.iter().product();
     Ok(Object::Num(acc))
 }
-fn sub(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn sub(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
-    if elements.is_empty() {
+    if args.is_empty() {
         return Err(EvalError::General(
             "`-` requires at least one argument.".to_string(),
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements, env)?;
+    let operands = to_num_vec(args, env)?;
     let first = operands[0];
     // lispの引き算は引数1の場合と複数の場合で計算方法が違う．
     if operands.len() == 1 {
@@ -117,15 +117,15 @@ fn sub(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn div(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn div(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
-    if elements.is_empty() {
+    if args.is_empty() {
         return Err(EvalError::General(
             "`/` requires at least one argument.".to_string(),
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements, env)?;
+    let operands = to_num_vec(args, env)?;
 
     if operands.len() == 1 {
         let divider = operands[0];
@@ -145,24 +145,24 @@ fn div(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn lt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    fold_cmp(elements, |a, b| a < b, env)
+fn lt(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    fold_cmp(args, |a, b| a < b, env)
 }
-fn gt(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    fold_cmp(elements, |a, b| a > b, env)
+fn gt(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    fold_cmp(args, |a, b| a > b, env)
 }
-fn begin(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn begin(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Nil;
-    for v in elements.into_iter() {
+    for v in args.into_iter() {
         result = eval(v, env)?;
     }
     Ok(result)
 }
-fn set(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    if elements.len() != 2 {
+fn set(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 2 {
         return Err(EvalError::InvalidSyntax);
     }
-    let symbol = match elements.get(0).unwrap() {
+    let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
         Element::V(_) => return Err(EvalError::InvalidSyntax),
         Element::A(a) => match a {
@@ -177,13 +177,13 @@ fn set(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
             },
         },
     };
-    let value = elements.get(1).unwrap();
+    let value = args.get(1).unwrap();
     let value = eval(value.clone(), env)?;
     env::set_value(env, symbol, value.clone());
     Ok(value)
 }
-fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    let var = match elements.get(0).unwrap() {
+fn define(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
         Element::V(_) => return Err(EvalError::NotImplementedSyntax),
         Element::A(a) => match a {
@@ -195,11 +195,11 @@ fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
             Atom::Ident(i) => i,
         },
     };
-    if elements.len() == 1 {
+    if args.len() == 1 {
         env::set_value(env, var, Object::Undef);
         Ok(Object::Undef)
-    } else if elements.len() == 2 {
-        let value = elements.get(1).unwrap();
+    } else if args.len() == 2 {
+        let value = args.get(1).unwrap();
         let value = eval(value.clone(), env)?;
         env::set_value(env, var, value);
         Ok(Object::Undef)
@@ -207,32 +207,32 @@ fn define(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Err(EvalError::InvalidSyntax)
     }
 }
-fn cons(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    if elements.len() != 2 {
+fn cons(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 2 {
         return Err(EvalError::InvalidSyntax);
     }
-    let lhs = elements.get(0).unwrap();
+    let lhs = args.get(0).unwrap();
     let lhs = eval(lhs.clone(), env)?;
-    let rhs = elements.get(1).unwrap();
+    let rhs = args.get(1).unwrap();
     let rhs = eval(rhs.clone(), env)?;
     Ok(create_pair(lhs, rhs))
 }
-fn car(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    if elements.len() != 1 {
+fn car(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 1 {
         return Err(EvalError::InvalidSyntax);
     }
-    let elem = elements.get(0).unwrap();
+    let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(f, _) => Ok(*f),
         _ => Err(EvalError::InvalidSyntax),
     }
 }
-fn cdr(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    if elements.len() != 1 {
+fn cdr(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 1 {
         return Err(EvalError::InvalidSyntax);
     }
-    let elem = elements.get(0).unwrap();
+    let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(_, s) => Ok(*s),
@@ -240,17 +240,17 @@ fn cdr(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn fold_cmp(
-    elements: Vec<Element>,
+    args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
     env: &RefEnv,
 ) -> Result<Object, EvalError> {
-    if elements.len() < 2 {
+    if args.len() < 2 {
         return Err(EvalError::General(
             "application requires at least two argument.".to_string(),
         ));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(elements, env)?;
+    let operands = to_num_vec(args, env)?;
     let first = operands[0];
     let (acc, _) = operands[1..]
         .iter()

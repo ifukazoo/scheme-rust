@@ -67,6 +67,8 @@ fn apply(operation: &str, elements: Vec<Element>, env: &RefEnv) -> Result<Object
         "define" => define(elements, env),
         "set" => set(elements, env),
         "cons" => cons(elements, env),
+        "car" => car(elements, env),
+        "cdr" => cdr(elements, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -215,6 +217,28 @@ fn cons(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let rhs = eval(rhs.clone(), env)?;
     Ok(create_pair(lhs, rhs))
 }
+fn car(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if elements.len() != 1 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let elem = elements.get(0).unwrap();
+    let obj = eval(elem.clone(), env)?;
+    match obj {
+        Object::Pair(f, _) => Ok(*f),
+        _ => Err(EvalError::InvalidSyntax),
+    }
+}
+fn cdr(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if elements.len() != 1 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let elem = elements.get(0).unwrap();
+    let obj = eval(elem.clone(), env)?;
+    match obj {
+        Object::Pair(_, s) => Ok(*s),
+        _ => Err(EvalError::InvalidSyntax),
+    }
+}
 fn fold_cmp(
     elements: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -325,9 +349,19 @@ mod test {
                 create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
             ),
             //
+            ("(car (cons 1 2))", Object::Num(Int(1))),
+            ("(cdr (cons 1 2))", Object::Num(Int(2))),
+            ("(car (cons 2 ()))", Object::Num(Int(2))),
+            ("(cdr (cons 2 ()))", Object::Nil),
+            ("(car (cons (+ 3 4) 2))", Object::Num(Int(7))),
+            ("(cdr (cons (+ 3 4) 2))", Object::Num(Int(2))),
+            ("(car (cons 1 (cons 2 (cons 3 ()))))", Object::Num(Int(1))),
             (
-                "(car (cons 1 2))",
-                create_pair(Object::Num(Int(1)), Object::Num(Int(2))),
+                "(cdr (cons 1 (cons 2 (cons 3 ()))))",
+                create_pair(
+                    Object::Num(Int(2)),
+                    create_pair(Object::Num(Int(3)), Object::Nil),
+                ),
             ),
         ];
         let env = env::new_env(HashMap::new());
@@ -355,6 +389,8 @@ mod test {
             ("(define 1)", EvalError::InvalidSyntax),
             ("(define + 2)", EvalError::NotImplementedSyntax),
             ("(define a 1 2)", EvalError::InvalidSyntax),
+            ("(car 1)", EvalError::InvalidSyntax),
+            ("(car 1 2)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

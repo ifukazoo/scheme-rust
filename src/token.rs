@@ -14,6 +14,8 @@ pub enum Token {
     DEFINE,
     SET,
     CONS,
+    CAR,
+    CDR,
     /// 変数
     VAR(String),
     // STRING 'string'

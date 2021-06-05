@@ -110,6 +110,8 @@ where
             "begin" => Token::BEGIN,
             "define" => Token::DEFINE,
             "cons" => Token::CONS,
+            "car" => Token::CAR,
+            "cdr" => Token::CDR,
             _ => Token::VAR(s),
         }
     }

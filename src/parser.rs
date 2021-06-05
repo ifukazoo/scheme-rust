@@ -62,6 +62,8 @@ where
         Token::DEFINE => Ok(Atom::Ope("define")),
         Token::SET => Ok(Atom::Ope("set")),
         Token::CONS => Ok(Atom::Ope("cons")),
+        Token::CAR => Ok(Atom::Ope("car")),
+        Token::CDR => Ok(Atom::Ope("cdr")),
         Token::VAR(s) => Ok(Atom::Ident(s)),
         _ => Err(ParseError::IllegalSyntax(t)),
     }

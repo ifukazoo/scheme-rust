@@ -69,6 +69,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         "cons" => cons(args, env),
         "car" => car(args, env),
         "cdr" => cdr(args, env),
+        "list" => list(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -242,6 +243,17 @@ fn cdr(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidSyntax),
     }
 }
+fn list(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let mut o = Object::Nil;
+    for arg in args.iter().rev() {
+        let e = eval(arg.clone(), env)?;
+        o = cons_pair(e, o);
+    }
+    Ok(o)
+}
 fn fold_cmp(
     args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -365,6 +377,16 @@ mod test {
                     Object::Num(Int(2)),
                     cons_pair(Object::Num(Int(3)), Object::Nil),
                 ),
+            ),
+            //
+            ("(list 1)", build_list(vec![Object::Num(Int(1))])),
+            (
+                "(list 1 2)",
+                build_list(vec![Object::Num(Int(1)), Object::Num(Int(2))]),
+            ),
+            (
+                "(list (+ 1 2) (define a) (> 2 1))",
+                build_list(vec![Object::Num(Int(3)), Object::Undef, Object::Bool(true)]),
             ),
         ];
         let env = env::new_env(HashMap::new());

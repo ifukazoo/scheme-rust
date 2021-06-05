@@ -16,6 +16,7 @@ pub enum Token {
     CONS,
     CAR,
     CDR,
+    LIST,
     /// 変数
     VAR(String),
     // STRING 'string'

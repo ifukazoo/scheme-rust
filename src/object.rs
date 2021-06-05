@@ -21,6 +21,13 @@ pub enum Object {
 pub fn cons_pair(lhs: Object, rhs: Object) -> Object {
     Object::Pair(Box::new(lhs), Box::new(rhs))
 }
+pub fn build_list(args: Vec<Object>) -> Object {
+    let mut o = Object::Nil;
+    for arg in args.iter().rev() {
+        o = cons_pair(arg.clone(), o);
+    }
+    o
+}
 
 fn to_string_bool(b: bool) -> String {
     if b {

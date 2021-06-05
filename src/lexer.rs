@@ -112,6 +112,7 @@ where
             "cons" => Token::CONS,
             "car" => Token::CAR,
             "cdr" => Token::CDR,
+            "list" => Token::LIST,
             _ => Token::VAR(s),
         }
     }

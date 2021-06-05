@@ -165,6 +165,9 @@ mod test {
                 ],
             ),
             ("(cons 1 2) ", vec![LPAREN, CONS, INT(1), INT(2), RPAREN]),
+            ("#t", vec![TRUE]),
+            (" #t ", vec![TRUE]),
+            ("#f", vec![FALSE]),
         ];
         for (input, expected) in tests.into_iter() {
             assert_eq!(expected, lex(input).unwrap());

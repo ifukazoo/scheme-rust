@@ -22,31 +22,60 @@ pub fn cons_pair(lhs: Object, rhs: Object) -> Object {
     Object::Pair(Box::new(lhs), Box::new(rhs))
 }
 
+fn to_string_bool(b: bool) -> String {
+    if b {
+        "#t".to_string()
+    } else {
+        "#f".to_string()
+    }
+}
+fn to_string_undef() -> String {
+    "<#undef>".to_string()
+}
+fn to_string_pair(first: &Object, second: &Object) -> String {
+    let mut buf = String::new();
+    to_string_pair_rec(first, second, &mut buf);
+    buf
+}
+fn to_string_pair_rec(first: &Object, second: &Object, collecting: &mut String) {
+    // ペアの先頭を出力
+    if collecting.is_empty() {
+        collecting.push_str(&format!("({}", first));
+    } else {
+        collecting.push_str(&format!(" {}", first));
+    }
+    to_string_pair_second(second, collecting);
+}
+fn to_string_pair_second(second: &Object, collecting: &mut String) {
+    match second {
+        // ペア終端が()の場合は何も出力しない．
+        Object::Nil => collecting.push_str(")"),
+        Object::Num(n) => {
+            collecting.push_str(&format!(" . {}", n));
+            collecting.push_str(")");
+        }
+        Object::Bool(b) => {
+            collecting.push_str(&format!(" . {}", to_string_bool(*b)));
+            collecting.push_str(")");
+        }
+        Object::Undef => {
+            collecting.push_str(&format!(" . {}", to_string_undef()));
+            collecting.push_str(")");
+        }
+        Object::Pair(f, s) => {
+            to_string_pair_rec(&*f, &*s, collecting);
+        }
+    }
+}
+
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Bool(b) => {
-                if *b {
-                    write!(f, "#t")
-                } else {
-                    write!(f, "#f")
-                }
-            }
+            Self::Bool(b) => write!(f, "{}", to_string_bool(*b)),
             Self::Num(n) => write!(f, "{}", n),
-            Self::Pair(lhs, rhs) => {
-                write!(f, "(")?;
-                write!(f, "{} ", lhs)?;
-                match **rhs {
-                    Object::Bool(_) | Object::Num(_) | Object::Undef => {
-                        write!(f, ".")?;
-                    }
-                    _ => {}
-                };
-                write!(f, "{}", rhs)?;
-                write!(f, ")")
-            }
             Self::Nil => write!(f, "()"),
-            Self::Undef => write!(f, "#<undef>"),
+            Self::Undef => write!(f, "{}", to_string_undef()),
+            Self::Pair(first, second) => write!(f, "{}", to_string_pair(&*first, &*second)),
         }
     }
 }
@@ -329,6 +358,32 @@ mod test {
         for (v, expected) in tests.into_iter() {
             assert_eq!(expected, v.iter().product::<Number>());
             assert_eq!(expected, v.into_iter().product::<Number>())
+        }
+    }
+
+    #[test]
+    fn test_number_string() {
+        use super::super::env::*;
+        use super::super::eval::*;
+        use super::super::lexer::*;
+        use super::super::parser::*;
+        use std::collections::HashMap;
+
+        let tests = vec![
+            ("(cons 1 2)", "(1 . 2)"),
+            ("(cons 1 ())", "(1)"),
+            ("(cons 1 (cons 2 ()))", "(1 2)"),
+            ("(cons (define a) ())", "(<#undef>)"),
+            ("(cons (> 2 1) (> 1 2))", "(#t . #f)"),
+            ("(cons (cons (> 2 1) (> 1 2)) ())", "((#t . #f))"),
+        ];
+
+        for (input, expected) in tests.into_iter() {
+            let token = lex(input).unwrap();
+            let elements = parse_program(token).unwrap();
+            let env = new_env(HashMap::new());
+            let obj = eval(elements, &env).unwrap();
+            assert_eq!(expected, format!("{}", obj))
         }
     }
 }

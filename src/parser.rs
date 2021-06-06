@@ -15,6 +15,8 @@ pub enum Atom {
     Ope(&'static str),
     /// 数. 0, 1, 2,
     Num(i64),
+    /// 真偽
+    Bool(bool),
     // Str(String)
     // 文字列. 'hello'
 
@@ -52,6 +54,8 @@ where
     let t = tokens.next().unwrap();
     match t {
         Token::INT(n) => Ok(Atom::Num(n)),
+        Token::TRUE => Ok(Atom::Bool(true)),
+        Token::FALSE => Ok(Atom::Bool(false)),
         Token::PLUS => Ok(Atom::Ope("+")),
         Token::MINUS => Ok(Atom::Ope("-")),
         Token::ASTER => Ok(Atom::Ope("*")),

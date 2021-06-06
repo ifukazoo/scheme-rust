@@ -18,8 +18,8 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
         } else if c.is_ascii_whitespace() {
             // 空白は飛ばす
             input.next().unwrap();
-        } else if c.is_alphabetic() {
-            let token = lex_alpha(&mut input);
+        } else if c.is_alphabetic() || c == '#' {
+            let token = lex_string(&mut input);
             tokens.push(token);
         } else {
             match c {
@@ -82,39 +82,33 @@ where
     Token::INT(i)
 }
 
-fn lex_alpha<Tokens>(input: &mut Peekable<Tokens>) -> Token
+fn lex_string<Tokens>(input: &mut Peekable<Tokens>) -> Token
 where
     Tokens: Iterator<Item = char>,
 {
-    let mut s = String::new();
+    // 先頭文字を刈り取り
+    let c = input.next().unwrap();
+    let mut s = String::from(c);
 
     while let Some(&c) = input.peek() {
-        if c.is_alphabetic() {
+        if c.is_alphanumeric() || c == '!' {
             s.push(c);
             input.next().unwrap();
         } else {
             break;
         }
     }
-    if let Some('!') = input.peek() {
-        input.next().unwrap();
-        match s.as_str() {
-            "set" => Token::SET,
-            _ => {
-                s.push('!');
-                Token::VAR(s)
-            }
-        }
-    } else {
-        match s.as_str() {
-            "begin" => Token::BEGIN,
-            "define" => Token::DEFINE,
-            "cons" => Token::CONS,
-            "car" => Token::CAR,
-            "cdr" => Token::CDR,
-            "list" => Token::LIST,
-            _ => Token::VAR(s),
-        }
+    match s.as_str() {
+        "begin" => Token::BEGIN,
+        "define" => Token::DEFINE,
+        "set!" => Token::SET,
+        "cons" => Token::CONS,
+        "car" => Token::CAR,
+        "cdr" => Token::CDR,
+        "list" => Token::LIST,
+        "#t" => Token::TRUE,
+        "#f" => Token::FALSE,
+        _ => Token::VAR(s),
     }
 }
 

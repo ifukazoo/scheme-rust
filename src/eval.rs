@@ -29,6 +29,7 @@ pub fn eval(element: Element, env: &RefEnv) -> Result<Object, EvalError> {
 pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
     match atom {
         Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
+        Atom::Bool(b) => Ok(Object::Bool(b)),
         Atom::Ident(i) => match env::get_value(env, &i) {
             Some(obj) => Ok(obj),
             None => Err(EvalError::UnboundVariable(i.to_string())),
@@ -168,7 +169,7 @@ fn set(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Element::V(_) => return Err(EvalError::InvalidSyntax),
         Element::A(a) => match a {
             // (set! 1 ...)
-            Atom::Num(_) => return Err(EvalError::InvalidSyntax),
+            Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
             // (set! + ...)
             Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
             // (set! a ...)
@@ -192,7 +193,7 @@ fn define(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Element::V(_) => return Err(EvalError::NotImplementedSyntax),
         Element::A(a) => match a {
             // (define 1 ...)
-            Atom::Num(_) => return Err(EvalError::InvalidSyntax),
+            Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
             // (define + ...)
             Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
             // (define a ...)
@@ -386,6 +387,12 @@ mod test {
                 build_list(vec![Object::Num(Int(3)), Object::Undef, Object::Bool(true)]),
             ),
             ("(list)", Object::Nil),
+            //
+            (
+                "(list #t #f)",
+                build_list(vec![Object::Bool(true), Object::Bool(false)]),
+            ),
+            //
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

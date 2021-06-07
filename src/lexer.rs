@@ -91,7 +91,7 @@ where
     let mut s = String::from(c);
 
     while let Some(&c) = input.peek() {
-        if c.is_alphanumeric() || c == '!' {
+        if c.is_alphanumeric() || c == '!' || c == '?' {
             s.push(c);
             input.next().unwrap();
         } else {
@@ -108,6 +108,8 @@ where
         "list" => Token::LIST,
         "#t" => Token::TRUE,
         "#f" => Token::FALSE,
+        "eq?" => Token::EQUAL,
+        "not" => Token::NOT,
         _ => Token::VAR(s),
     }
 }

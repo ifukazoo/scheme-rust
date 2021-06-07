@@ -69,6 +69,8 @@ where
         Token::CAR => Ok(Atom::Ope("car")),
         Token::CDR => Ok(Atom::Ope("cdr")),
         Token::LIST => Ok(Atom::Ope("list")),
+        Token::EQUAL => Ok(Atom::Ope("eq?")),
+        Token::NOT => Ok(Atom::Ope("not")),
         Token::VAR(s) => Ok(Atom::Ident(s)),
         _ => Err(ParseError::IllegalSyntax(t)),
     }

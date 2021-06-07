@@ -71,6 +71,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         "car" => car(args, env),
         "cdr" => cdr(args, env),
         "list" => list(args, env),
+        "eq?" => eq(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -252,6 +253,30 @@ fn list(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
+fn eq(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let left = args.get(0).unwrap();
+    let left = eval(left.clone(), env)?;
+    let right = args.get(1).unwrap();
+    let right = eval(right.clone(), env)?;
+    match left {
+        Object::Bool(lb) => match right {
+            Object::Bool(rb) => Ok(Object::Bool(lb == rb)),
+            _ => Ok(Object::Bool(false)),
+        },
+        Object::Nil => match right {
+            Object::Nil => Ok(Object::Bool(true)),
+            _ => Ok(Object::Bool(false)),
+        },
+        Object::Num(ln) => match right {
+            Object::Num(rn) => Ok(Object::Bool(ln == rn)),
+            _ => Ok(Object::Bool(false)),
+        },
+        _ => Ok(Object::Bool(false)),
+    }
+}
 fn fold_cmp(
     args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -392,6 +417,14 @@ mod test {
                 "(list #t #f)",
                 build_list(vec![Object::Bool(true), Object::Bool(false)]),
             ),
+            //
+            ("(eq? 0 0)", Object::Bool(true)),
+            ("(eq? 0 1)", Object::Bool(false)),
+            ("(eq? #t #t)", Object::Bool(true)),
+            ("(eq? #t #f)", Object::Bool(false)),
+            ("(eq? #t 0)", Object::Bool(false)),
+            ("(eq? (cons 0 0) (cons 0 0))", Object::Bool(false)),
+            ("(eq? (list) (list))", Object::Bool(true)),
             //
         ];
         let env = env::new_env(HashMap::new());

@@ -19,6 +19,8 @@ pub enum Token {
     LIST,
     TRUE,
     FALSE,
+    EQUAL,
+    NOT,
     /// 変数
     VAR(String),
     // STRING 'string'

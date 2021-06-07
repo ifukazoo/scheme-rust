@@ -244,9 +244,6 @@ fn cdr(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn list(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
-    if args.is_empty() {
-        return Err(EvalError::InvalidSyntax);
-    }
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
         let e = eval(arg.clone(), env)?;
@@ -388,6 +385,7 @@ mod test {
                 "(list (+ 1 2) (define a) (> 2 1))",
                 build_list(vec![Object::Num(Int(3)), Object::Undef, Object::Bool(true)]),
             ),
+            ("(list)", Object::Nil),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -417,7 +415,6 @@ mod test {
             ("(define a 1 2)", EvalError::InvalidSyntax),
             ("(car 1)", EvalError::InvalidSyntax),
             ("(car 1 2)", EvalError::InvalidSyntax),
-            ("(list)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

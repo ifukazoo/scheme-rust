@@ -72,6 +72,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         "cdr" => cdr(args, env),
         "list" => list(args, env),
         "eq?" => eq(args, env),
+        "not" => not(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -277,6 +278,17 @@ fn eq(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
+fn not(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let left = args.get(0).unwrap();
+    let left = eval(left.clone(), env)?;
+    match left {
+        Object::Bool(b) => Ok(Object::Bool(!b)),
+        _ => Ok(Object::Bool(false)),
+    }
+}
 fn fold_cmp(
     args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -425,6 +437,10 @@ mod test {
             ("(eq? #t 0)", Object::Bool(false)),
             ("(eq? (cons 0 0) (cons 0 0))", Object::Bool(false)),
             ("(eq? (list) (list))", Object::Bool(true)),
+            ("(not #f)", Object::Bool(true)),
+            ("(not #t)", Object::Bool(false)),
+            ("(not 1)", Object::Bool(false)),
+            ("(not (cons 1 2))", Object::Bool(false)),
             //
         ];
         let env = env::new_env(HashMap::new());
@@ -455,6 +471,7 @@ mod test {
             ("(define a 1 2)", EvalError::InvalidSyntax),
             ("(car 1)", EvalError::InvalidSyntax),
             ("(car 1 2)", EvalError::InvalidSyntax),
+            ("(not 1 2)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

@@ -110,6 +110,7 @@ where
         "#f" => Token::FALSE,
         "eq?" => Token::EQUAL,
         "not" => Token::NOT,
+        "if" => Token::IF,
         _ => Token::VAR(s),
     }
 }

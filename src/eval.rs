@@ -73,6 +73,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         "list" => list(args, env),
         "eq?" => eq(args, env),
         "not" => not(args, env),
+        "if" => ifclause(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -289,6 +290,31 @@ fn not(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
+fn ifclause(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if !(args.len() == 2 || args.len() == 3) {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let cond = args.get(0).unwrap();
+    let cond = eval(cond.clone(), env)?;
+    match cond {
+        Object::Bool(b) => {
+            if b {
+                let conseq = args.get(1).unwrap();
+                let conseq = eval(conseq.clone(), env)?;
+                Ok(conseq)
+            } else {
+                if args.len() == 2 {
+                    Ok(Object::Undef)
+                } else {
+                    let alt = args.get(2).unwrap();
+                    let alt = eval(alt.clone(), env)?;
+                    Ok(alt)
+                }
+            }
+        }
+        _ => Err(EvalError::InvalidSyntax),
+    }
+}
 fn fold_cmp(
     args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -442,6 +468,10 @@ mod test {
             ("(not 1)", Object::Bool(false)),
             ("(not (cons 1 2))", Object::Bool(false)),
             //
+            ("(if #t 1 2)", Object::Num(Int(1))),
+            ("(if #f 1 2)", Object::Num(Int(2))),
+            ("(if #f 1)", Object::Undef),
+            ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -471,7 +501,12 @@ mod test {
             ("(define a 1 2)", EvalError::InvalidSyntax),
             ("(car 1)", EvalError::InvalidSyntax),
             ("(car 1 2)", EvalError::InvalidSyntax),
+            ("(not)", EvalError::InvalidSyntax),
             ("(not 1 2)", EvalError::InvalidSyntax),
+            ("(not 1 2 3)", EvalError::InvalidSyntax),
+            ("(if)", EvalError::InvalidSyntax),
+            ("(if #t)", EvalError::InvalidSyntax),
+            ("(if #t 1 2 3)", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

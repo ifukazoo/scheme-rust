@@ -3,7 +3,7 @@ use crate::env;
 use crate::env::*;
 use crate::object::*;
 use crate::parser::Atom;
-use crate::parser::Element;
+use crate::parser::Unit;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
@@ -20,10 +20,10 @@ pub enum EvalError {
     General(String),
 }
 
-pub fn eval(element: Element, env: &RefEnv) -> Result<Object, EvalError> {
+pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
     match element {
-        Element::A(a) => eval_atom(a, env),
-        Element::V(v) => eval_vector(v, env),
+        Unit::Bare(a) => eval_atom(a, env),
+        Unit::Paren(v) => eval_vector(v, env),
     }
 }
 pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
@@ -37,15 +37,15 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::NotImplementedSyntax),
     }
 }
-fn eval_vector(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_vector(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if elements.is_empty() {
         Ok(Object::Nil)
     } else {
         let op = &elements[0];
         let operand = &elements[1..];
         match op {
-            Element::A(Atom::Ope(o)) => apply(o, operand.to_vec(), env),
-            Element::A(Atom::Ident(i)) => {
+            Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
+            Unit::Bare(Atom::Ident(i)) => {
                 if let Some(obj) = env::get_value(env, i) {
                     Ok(obj)
                 } else {
@@ -56,7 +56,7 @@ fn eval_vector(elements: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError
         }
     }
 }
-fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     match operation {
         "+" => add(args, env),
         "-" => sub(args, env),
@@ -78,7 +78,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         _ => Err(EvalError::InvalidApplication),
     }
 }
-fn to_num_vec(elements: Vec<Element>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
+fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {
         let obj = eval(n, env)?;
@@ -93,19 +93,19 @@ fn to_num_vec(elements: Vec<Element>, env: &RefEnv) -> Result<Vec<Number>, EvalE
     }
     Ok(v)
 }
-fn add(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
     let acc = operands.iter().sum();
     Ok(Object::Num(acc))
 }
-fn mul(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
     let acc = operands.iter().product();
     Ok(Object::Num(acc))
 }
-fn sub(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::General(
@@ -123,7 +123,7 @@ fn sub(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn div(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::General(
@@ -151,31 +151,31 @@ fn div(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(sum))
     }
 }
-fn lt(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a < b, env)
 }
-fn gt(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
-fn begin(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for v in args.into_iter() {
         result = eval(v, env)?;
     }
     Ok(result)
 }
-fn set(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax);
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
-        Element::V(_) => return Err(EvalError::InvalidSyntax),
-        Element::A(a) => match a {
+        Unit::Paren(_) => return Err(EvalError::InvalidSyntax),
+        Unit::Bare(a) => match a {
             // (set! 1 ...)
             Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
             // (set! + ...)
-            Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
+            Atom::App(_) => return Err(EvalError::NotImplementedSyntax),
             // (set! a ...)
             Atom::Ident(i) => match env::get_value(env, i) {
                 Some(_) => i,
@@ -188,18 +188,18 @@ fn set(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     env::set_value(env, symbol, value.clone());
     Ok(value)
 }
-fn define(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax);
     }
     let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
-        Element::V(_) => return Err(EvalError::NotImplementedSyntax),
-        Element::A(a) => match a {
+        Unit::Paren(_) => return Err(EvalError::NotImplementedSyntax),
+        Unit::Bare(a) => match a {
             // (define 1 ...)
             Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
             // (define + ...)
-            Atom::Ope(_) => return Err(EvalError::NotImplementedSyntax),
+            Atom::App(_) => return Err(EvalError::NotImplementedSyntax),
             // (define a ...)
             Atom::Ident(i) => i,
         },
@@ -216,7 +216,7 @@ fn define(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         Err(EvalError::InvalidSyntax)
     }
 }
-fn cons(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax);
     }
@@ -226,7 +226,7 @@ fn cons(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let rhs = eval(rhs.clone(), env)?;
     Ok(cons_pair(lhs, rhs))
 }
-fn car(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax);
     }
@@ -237,7 +237,7 @@ fn car(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidSyntax),
     }
 }
-fn cdr(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax);
     }
@@ -248,7 +248,7 @@ fn cdr(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidSyntax),
     }
 }
-fn list(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
         let e = eval(arg.clone(), env)?;
@@ -256,7 +256,7 @@ fn list(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
-fn eq(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax);
     }
@@ -280,7 +280,7 @@ fn eq(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
-fn not(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax);
     }
@@ -291,7 +291,7 @@ fn not(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
-fn ifclause(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn ifclause(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if !(args.len() == 2 || args.len() == 3) {
         return Err(EvalError::InvalidSyntax);
     }
@@ -316,7 +316,7 @@ fn ifclause(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidSyntax),
     }
 }
-fn cond(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax);
     }
@@ -329,15 +329,15 @@ fn cond(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Undef;
     for arg in args.into_iter() {
         match arg {
-            Element::A(_) => return Err(EvalError::InvalidSyntax),
-            Element::V(v) => {
+            Unit::Bare(_) => return Err(EvalError::InvalidSyntax),
+            Unit::Paren(v) => {
                 if v.len() != 2 {
                     // (cond (#t 1 3))
                     return Err(EvalError::InvalidSyntax);
                 }
                 let first = v.get(0).unwrap();
                 match first {
-                    Element::A(Atom::Ope("else")) => {
+                    Unit::Bare(Atom::App("else")) => {
                         // (else xxx)は無条件に実行
                         let second = v.get(1).unwrap();
                         result = eval(second.clone(), env)?;
@@ -361,7 +361,7 @@ fn cond(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
     Ok(result)
 }
 fn fold_cmp(
-    args: Vec<Element>,
+    args: Vec<Unit>,
     cmp: fn(Number, Number) -> bool,
     env: &RefEnv,
 ) -> Result<Object, EvalError> {

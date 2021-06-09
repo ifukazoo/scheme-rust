@@ -72,6 +72,8 @@ where
         Token::EQUAL => Ok(Atom::Ope("eq?")),
         Token::NOT => Ok(Atom::Ope("not")),
         Token::IF => Ok(Atom::Ope("if")),
+        Token::COND => Ok(Atom::Ope("cond")),
+        Token::ELSE => Ok(Atom::Ope("else")),
         Token::VAR(s) => Ok(Atom::Ident(s)),
         _ => Err(ParseError::IllegalSyntax(t)),
     }

@@ -74,6 +74,7 @@ fn apply(operation: &str, args: Vec<Element>, env: &RefEnv) -> Result<Object, Ev
         "eq?" => eq(args, env),
         "not" => not(args, env),
         "if" => ifclause(args, env),
+        "cond" => cond(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -315,6 +316,50 @@ fn ifclause(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::InvalidSyntax),
     }
 }
+fn cond(args: Vec<Element>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax);
+    }
+    /*
+    (cond
+      ((+ 1 1) 1)
+      (#t 2)
+      (else 3))
+    */
+    let mut result = Object::Undef;
+    for arg in args.into_iter() {
+        match arg {
+            Element::A(_) => return Err(EvalError::InvalidSyntax),
+            Element::V(v) => {
+                if v.len() != 2 {
+                    // (cond (#t 1 3))
+                    return Err(EvalError::InvalidSyntax);
+                }
+                let first = v.get(0).unwrap();
+                match first {
+                    Element::A(Atom::Ope("else")) => {
+                        // (else xxx)は無条件に実行
+                        let second = v.get(1).unwrap();
+                        result = eval(second.clone(), env)?;
+                        break;
+                    }
+                    _ => {
+                        let first = eval(first.clone(), env)?;
+                        if let Object::Bool(false) = first {
+                            // 何もしない
+                            // schemeの condは 条件がfalseだとパス．それ以外はevalとなる
+                        } else {
+                            let second = v.get(1).unwrap();
+                            result = eval(second.clone(), env)?;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(result)
+}
 fn fold_cmp(
     args: Vec<Element>,
     cmp: fn(Number, Number) -> bool,
@@ -472,6 +517,20 @@ mod test {
             ("(if #f 1 2)", Object::Num(Int(2))),
             ("(if #f 1)", Object::Undef),
             ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
+            //
+            ("(cond (#f 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(3))),
+            ("(cond (#t 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(1))),
+            ("(cond (#t 1))", Object::Num(Int(1))),
+            ("(cond (#f 1) (#f 2))", Object::Undef),
+            ("(cond (else 1))", Object::Num(Int(1))),
+            (
+                "(cond ((define a) 1) (#f 2) (#t 3) (else 4))",
+                Object::Num(Int(1)),
+            ),
+            (
+                "(cond ((+ 1 1) 1) (#f 2) (#t 3) (else 4))",
+                Object::Num(Int(1)),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

@@ -111,6 +111,8 @@ where
         "eq?" => Token::EQUAL,
         "not" => Token::NOT,
         "if" => Token::IF,
+        "cond" => Token::COND,
+        "else" => Token::ELSE,
         _ => Token::VAR(s),
     }
 }

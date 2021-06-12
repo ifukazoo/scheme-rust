@@ -305,14 +305,12 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 let conseq = args.get(1).unwrap();
                 let conseq = eval(conseq.clone(), env)?;
                 Ok(conseq)
+            } else if args.len() == 2 {
+                Ok(Object::Undef)
             } else {
-                if args.len() == 2 {
-                    Ok(Object::Undef)
-                } else {
-                    let alt = args.get(2).unwrap();
-                    let alt = eval(alt.clone(), env)?;
-                    Ok(alt)
-                }
+                let alt = args.get(2).unwrap();
+                let alt = eval(alt.clone(), env)?;
+                Ok(alt)
             }
         }
         _ => Err(EvalError::InvalidSyntax),

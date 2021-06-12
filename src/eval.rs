@@ -74,7 +74,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "list" => list(args, env),
         "eq?" => eq(args, env),
         "not" => not(args, env),
-        "if" => ifclause(args, env),
+        "if" => if_exp(args, env),
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
         _ => Err(EvalError::InvalidApplication),
@@ -293,7 +293,7 @@ fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
-fn ifclause(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if !(args.len() == 2 || args.len() == 3) {
         return Err(EvalError::InvalidSyntax);
     }

@@ -113,6 +113,7 @@ where
         "if" => Token::IF,
         "cond" => Token::COND,
         "else" => Token::ELSE,
+        "let" => Token::LET,
         _ => Token::VAR(s),
     }
 }

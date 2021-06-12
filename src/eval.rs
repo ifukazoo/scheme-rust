@@ -4,6 +4,7 @@ use crate::env::*;
 use crate::object::*;
 use crate::parser::Atom;
 use crate::parser::Unit;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
@@ -75,6 +76,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "not" => not(args, env),
         "if" => ifclause(args, env),
         "cond" => cond(args, env),
+        "let" => let_exp(args, env),
         _ => Err(EvalError::InvalidApplication),
     }
 }
@@ -317,15 +319,16 @@ fn ifclause(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    /*
+    (cond
+        (exp exp)
+        (exp exp)
+        (else exp)
+    )
+    */
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax);
     }
-    /*
-    (cond
-      ((+ 1 1) 1)
-      (#t 2)
-      (else 3))
-    */
     let mut result = Object::Undef;
     for arg in args.into_iter() {
         match arg {
@@ -359,6 +362,45 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
     Ok(result)
+}
+fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    // (let () () ())
+    if args.len() != 2 {
+        return Err(EvalError::InvalidSyntax);
+    }
+    let let_env = new_env(HashMap::new());
+    let set_statement = args.get(0).unwrap();
+    let exp = args.get(1).unwrap();
+    match set_statement {
+        // (let a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax),
+        Unit::Paren(units) => {
+            for unit in units.iter() {
+                match unit {
+                    // (let (a) ())
+                    Unit::Bare(_) => return Err(EvalError::InvalidSyntax),
+                    Unit::Paren(sym_and_value) => {
+                        if sym_and_value.len() != 2 {
+                            // (let ((a b c)) ())
+                            return Err(EvalError::InvalidSyntax);
+                        }
+                        let sym = sym_and_value.get(0).unwrap();
+                        let value = sym_and_value.get(1).unwrap();
+                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                            let value = eval(value.clone(), env)?;
+                            set_value(&let_env, &key, value);
+                        } else {
+                            // (let ((1 0)) ())
+                            return Err(EvalError::InvalidSyntax);
+                        }
+                    }
+                }
+            }
+            add_outer(&let_env, env);
+            let obj = eval(exp.clone(), &let_env)?;
+            Ok(obj)
+        }
+    }
 }
 fn fold_cmp(
     args: Vec<Unit>,
@@ -531,6 +573,10 @@ mod test {
                 "(cond ((+ 1 1) 1) (#f 2) (#t 3) (else 4))",
                 Object::Num(Int(1)),
             ),
+            //
+            ("(let ((a 1)) (+ a 2))", Object::Num(Int(3))),
+            ("(let ((a 1) (b 2)) (+ a b))", Object::Num(Int(3))),
+            ("(let () (+ 1 2))", Object::Num(Int(3))),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -566,6 +612,11 @@ mod test {
             ("(if)", EvalError::InvalidSyntax),
             ("(if #t)", EvalError::InvalidSyntax),
             ("(if #t 1 2 3)", EvalError::InvalidSyntax),
+            ("(let  a (+ 1 2))", EvalError::InvalidSyntax),
+            ("(let (a) (+ 1 2))", EvalError::InvalidSyntax),
+            ("(let (a 1) (+ 1 2))", EvalError::InvalidSyntax),
+            ("(let ((a 1 2)) (+ 1 2))", EvalError::InvalidSyntax),
+            ("(let ((1 2)) (+ 1 2))", EvalError::InvalidSyntax),
         ];
 
         let env = env::new_env(HashMap::new());

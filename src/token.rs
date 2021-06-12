@@ -24,6 +24,7 @@ pub enum Token {
     IF,
     COND,
     ELSE,
+    LET,
     /// 変数
     VAR(String),
     // STRING 'string'

@@ -11,7 +11,7 @@ pub enum EvalError {
     /// 未実装の構文 (本家のschemeは実装している)
     NotImplementedSyntax,
     /// 演算子でないものが演算子として使用された
-    InvalidApplication,
+    InvalidApplication(String),
     /// ゼロ除算
     ZeroDivision,
     /// 構文エラー
@@ -45,15 +45,13 @@ fn eval_vector(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         let op = &elements[0];
         let operand = &elements[1..];
         match op {
+            // (+ 1 2), (define ), (lambda ) ,...
             Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
-            Unit::Bare(Atom::Ident(i)) => {
-                if let Some(obj) = env::get_value(env, i) {
-                    Ok(obj)
-                } else {
-                    Err(EvalError::UnboundVariable(i.to_string()))
-                }
-            }
-            _ => Err(EvalError::InvalidApplication),
+            // (myfunc 1)
+            // TODO lambda対応後
+            // Unit::Bare(Atom::Ident(f)) => {
+            Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
+            Unit::Paren(v) => Err(EvalError::InvalidApplication(format!("{:?}", v))),
         }
     }
 }
@@ -77,7 +75,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
-        _ => Err(EvalError::InvalidApplication),
+        _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
 }
 fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
@@ -593,7 +591,7 @@ mod test {
         let tests = vec![
             //
             ("+", EvalError::NotImplementedSyntax),
-            ("(1 1 2)", EvalError::InvalidApplication),
+            ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),
             ("(define)", EvalError::InvalidSyntax),
@@ -623,7 +621,29 @@ mod test {
             let p = parser::parse_program(l).unwrap();
             match eval(p, &env) {
                 Ok(_) => panic!("expected err. but ok."),
-                Err(e) => assert_eq!(expected, e),
+                Err(e) => match expected {
+                    EvalError::InvalidSyntax
+                    | EvalError::ZeroDivision
+                    | EvalError::NotImplementedSyntax => assert_eq!(expected, e),
+                    EvalError::General(_) => {
+                        if let EvalError::General(_) = e {
+                        } else {
+                            panic!("expected {:?}. but {:?}.", expected, e);
+                        }
+                    }
+                    EvalError::InvalidApplication(_) => {
+                        if let EvalError::InvalidApplication(_) = e {
+                        } else {
+                            panic!("expected {:?}. but {:?}.", expected, e);
+                        }
+                    }
+                    EvalError::UnboundVariable(_) => {
+                        if let EvalError::UnboundVariable(_) = e {
+                        } else {
+                            panic!("expected {:?}. but {:?}.", expected, e);
+                        }
+                    }
+                },
             }
         }
     }

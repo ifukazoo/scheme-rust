@@ -56,18 +56,18 @@ fn to_string_pair_rec(first: &Object, second: &Object, collecting: &mut String) 
 fn to_string_pair_second(second: &Object, collecting: &mut String) {
     match second {
         // ペア終端が()の場合は何も出力しない．
-        Object::Nil => collecting.push_str(")"),
+        Object::Nil => collecting.push(')'),
         Object::Num(n) => {
             collecting.push_str(&format!(" . {}", n));
-            collecting.push_str(")");
+            collecting.push(')');
         }
         Object::Bool(b) => {
             collecting.push_str(&format!(" . {}", to_string_bool(*b)));
-            collecting.push_str(")");
+            collecting.push(')');
         }
         Object::Undef => {
             collecting.push_str(&format!(" . {}", to_string_undef()));
-            collecting.push_str(")");
+            collecting.push(')');
         }
         Object::Pair(f, s) => {
             to_string_pair_rec(&*f, &*s, collecting);

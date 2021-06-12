@@ -108,9 +108,7 @@ fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if args.is_empty() {
-        return Err(EvalError::General(
-            "`-` requires at least one argument.".to_string(),
-        ));
+        return Err(EvalError::InvalidSyntax(format!("引き算の引数が0.")));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
@@ -126,9 +124,7 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if args.is_empty() {
-        return Err(EvalError::General(
-            "`/` requires at least one argument.".to_string(),
-        ));
+        return Err(EvalError::InvalidSyntax(format!("割り算の引数が0.")));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
@@ -166,14 +162,14 @@ fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax("set!の引数が1でない.".to_string()));
+        return Err(EvalError::InvalidSyntax(format!("set!の引数が1でない.")));
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
         Unit::Paren(_) => {
-            return Err(EvalError::InvalidSyntax(
-                "set!の1st引数がシンボルでない.()".to_string(),
-            ))
+            return Err(EvalError::InvalidSyntax(format!(
+                "set!の1st引数がシンボルでない.()"
+            )));
         }
         Unit::Bare(a) => match a {
             // (set! 1 ...)

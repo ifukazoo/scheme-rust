@@ -15,7 +15,7 @@ pub enum EvalError {
     /// ゼロ除算
     ZeroDivision,
     /// 構文エラー
-    InvalidSyntax,
+    InvalidSyntax(String),
     /// 不明な変数
     UnboundVariable(String),
     General(String),
@@ -166,14 +166,23 @@ fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax("set!の引数が1でない.".to_string()));
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
-        Unit::Paren(_) => return Err(EvalError::InvalidSyntax),
+        Unit::Paren(_) => {
+            return Err(EvalError::InvalidSyntax(
+                "set!の1st引数がシンボルでない.()".to_string(),
+            ))
+        }
         Unit::Bare(a) => match a {
             // (set! 1 ...)
-            Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
+            Atom::Num(_) | Atom::Bool(_) => {
+                return Err(EvalError::InvalidSyntax(format!(
+                    "set!の1st引数がシンボルでない.[{:?}]",
+                    a
+                )))
+            }
             // (set! + ...)
             Atom::App(_) => return Err(EvalError::NotImplementedSyntax),
             // (set! a ...)
@@ -190,14 +199,20 @@ fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("define required 1 arg.")));
     }
     let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
         Unit::Paren(_) => return Err(EvalError::NotImplementedSyntax),
         Unit::Bare(a) => match a {
             // (define 1 ...)
-            Atom::Num(_) | Atom::Bool(_) => return Err(EvalError::InvalidSyntax),
+            Atom::Num(_) | Atom::Bool(_) => {
+                return Err(EvalError::InvalidSyntax(format!(
+                    "set! required symbol arg. but {:?}.",
+                    a
+                )))
+            }
+
             // (define + ...)
             Atom::App(_) => return Err(EvalError::NotImplementedSyntax),
             // (define a ...)
@@ -213,12 +228,12 @@ fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         env::set_value(env, var, value);
         Ok(Object::Undef)
     } else {
-        Err(EvalError::InvalidSyntax)
+        Err(EvalError::InvalidSyntax(format!("defineの引数が3以上.")))
     }
 }
 fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("consの引数が2以外.")));
     }
     let lhs = args.get(0).unwrap();
     let lhs = eval(lhs.clone(), env)?;
@@ -228,24 +243,24 @@ fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("carの引数が1以外")));
     }
     let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(f, _) => Ok(*f),
-        _ => Err(EvalError::InvalidSyntax),
+        _ => Err(EvalError::InvalidSyntax(format!("carの引数がペアでない."))),
     }
 }
 fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("cdrの引数が1以外.")));
     }
     let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(_, s) => Ok(*s),
-        _ => Err(EvalError::InvalidSyntax),
+        _ => Err(EvalError::InvalidSyntax(format!("cdrの引数がペアでない."))),
     }
 }
 fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -258,7 +273,7 @@ fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("eq?の引数が2以外.")));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -282,7 +297,7 @@ fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("notの引数が1以外.")));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -293,7 +308,9 @@ fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if !(args.len() == 2 || args.len() == 3) {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!(
+            "if式の引数が2 or 3 以外."
+        )));
     }
     let cond = args.get(0).unwrap();
     let cond = eval(cond.clone(), env)?;
@@ -311,7 +328,9 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(alt)
             }
         }
-        _ => Err(EvalError::InvalidSyntax),
+        _ => Err(EvalError::InvalidSyntax(format!(
+            "if式にbool式以外が指定されている."
+        ))),
     }
 }
 fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -323,16 +342,22 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     )
     */
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("cond式の引数が0.")));
     }
     let mut result = Object::Undef;
     for arg in args.into_iter() {
         match arg {
-            Unit::Bare(_) => return Err(EvalError::InvalidSyntax),
+            Unit::Bare(_) => {
+                return Err(EvalError::InvalidSyntax(format!(
+                    "cond式の節がかっこ形式でない."
+                )))
+            }
             Unit::Paren(v) => {
                 if v.len() != 2 {
                     // (cond (#t 1 3))
-                    return Err(EvalError::InvalidSyntax);
+                    return Err(EvalError::InvalidSyntax(format!(
+                        "cond式の節に引数が2以外のものがある."
+                    )));
                 }
                 let first = v.get(0).unwrap();
                 match first {
@@ -362,23 +387,31 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // (let () () ())
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax);
+        return Err(EvalError::InvalidSyntax(format!("let式の引数が2以外.")));
     }
     let let_env = new_env(HashMap::new());
     let set_statement = args.get(0).unwrap();
     let exp = args.get(1).unwrap();
     match set_statement {
         // (let a ())
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax),
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(format!(
+            "let式の定義部分がかっこ形式でない."
+        ))),
         Unit::Paren(units) => {
             for unit in units.iter() {
                 match unit {
                     // (let (a) ())
-                    Unit::Bare(_) => return Err(EvalError::InvalidSyntax),
+                    Unit::Bare(_) => {
+                        return Err(EvalError::InvalidSyntax(format!(
+                            "let式の定義部分にかっこ形式でないものがある."
+                        )))
+                    }
                     Unit::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
                             // (let ((a b c)) ())
-                            return Err(EvalError::InvalidSyntax);
+                            return Err(EvalError::InvalidSyntax(format!(
+                                "let式の定義部分に要素数が2以外のものがある."
+                            )));
                         }
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
@@ -387,7 +420,9 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                             set_value(&let_env, &key, value);
                         } else {
                             // (let ((1 0)) ())
-                            return Err(EvalError::InvalidSyntax);
+                            return Err(EvalError::InvalidSyntax(format!(
+                                "let式の定義部分にシンボル以外のものが指定された."
+                            )));
                         }
                     }
                 }
@@ -594,25 +629,31 @@ mod test {
             ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),
-            ("(define)", EvalError::InvalidSyntax),
+            ("(define)", EvalError::InvalidSyntax(format!(""))),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
-            ("(define 1)", EvalError::InvalidSyntax),
+            ("(define 1)", EvalError::InvalidSyntax(format!(""))),
             ("(define + 2)", EvalError::NotImplementedSyntax),
-            ("(define a 1 2)", EvalError::InvalidSyntax),
-            ("(car 1)", EvalError::InvalidSyntax),
-            ("(car 1 2)", EvalError::InvalidSyntax),
-            ("(not)", EvalError::InvalidSyntax),
-            ("(not 1 2)", EvalError::InvalidSyntax),
-            ("(not 1 2 3)", EvalError::InvalidSyntax),
-            ("(if)", EvalError::InvalidSyntax),
-            ("(if #t)", EvalError::InvalidSyntax),
-            ("(if #t 1 2 3)", EvalError::InvalidSyntax),
-            ("(let  a (+ 1 2))", EvalError::InvalidSyntax),
-            ("(let (a) (+ 1 2))", EvalError::InvalidSyntax),
-            ("(let (a 1) (+ 1 2))", EvalError::InvalidSyntax),
-            ("(let ((a 1 2)) (+ 1 2))", EvalError::InvalidSyntax),
-            ("(let ((1 2)) (+ 1 2))", EvalError::InvalidSyntax),
+            ("(define a 1 2)", EvalError::InvalidSyntax(format!(""))),
+            ("(car 1)", EvalError::InvalidSyntax(format!(""))),
+            ("(car 1 2)", EvalError::InvalidSyntax(format!(""))),
+            ("(not)", EvalError::InvalidSyntax(format!(""))),
+            ("(not 1 2)", EvalError::InvalidSyntax(format!(""))),
+            ("(not 1 2 3)", EvalError::InvalidSyntax(format!(""))),
+            ("(if)", EvalError::InvalidSyntax(format!(""))),
+            ("(if #t)", EvalError::InvalidSyntax(format!(""))),
+            ("(if #t 1 2 3)", EvalError::InvalidSyntax(format!(""))),
+            ("(let  a (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
+            ("(let (a) (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
+            ("(let (a 1) (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
+            (
+                "(let ((a 1 2)) (+ 1 2))",
+                EvalError::InvalidSyntax(format!("")),
+            ),
+            (
+                "(let ((1 2)) (+ 1 2))",
+                EvalError::InvalidSyntax(format!("")),
+            ),
         ];
 
         let env = env::new_env(HashMap::new());
@@ -622,11 +663,17 @@ mod test {
             match eval(p, &env) {
                 Ok(_) => panic!("expected err. but ok."),
                 Err(e) => match expected {
-                    EvalError::InvalidSyntax
-                    | EvalError::ZeroDivision
-                    | EvalError::NotImplementedSyntax => assert_eq!(expected, e),
+                    EvalError::ZeroDivision | EvalError::NotImplementedSyntax => {
+                        assert_eq!(expected, e)
+                    }
                     EvalError::General(_) => {
                         if let EvalError::General(_) = e {
+                        } else {
+                            panic!("expected {:?}. but {:?}.", expected, e);
+                        }
+                    }
+                    EvalError::InvalidSyntax(_) => {
+                        if let EvalError::InvalidSyntax(_) = e {
                         } else {
                             panic!("expected {:?}. but {:?}.", expected, e);
                         }

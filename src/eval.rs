@@ -18,7 +18,6 @@ pub enum EvalError {
     InvalidSyntax(String),
     /// 不明な変数
     UnboundVariable(String),
-    General(String),
 }
 
 pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
@@ -85,8 +84,8 @@ fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalErro
         if let Object::Num(n) = obj {
             v.push(n);
         } else {
-            return Err(EvalError::General(format!(
-                "can't convert to number [{:?}]",
+            return Err(EvalError::InvalidSyntax(format!(
+                "四則演算の引数に数字ではないものがある.[{:?}]",
                 obj
             )));
         }
@@ -435,9 +434,9 @@ fn fold_cmp(
     env: &RefEnv,
 ) -> Result<Object, EvalError> {
     if args.len() < 2 {
-        return Err(EvalError::General(
-            "application requires at least two argument.".to_string(),
-        ));
+        return Err(EvalError::InvalidSyntax(format!(
+            "application requires at least two argument."
+        )));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
@@ -625,6 +624,8 @@ mod test {
             ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),
+            ("(< 1)", EvalError::InvalidSyntax("".to_string())),
+            ("(> 1)", EvalError::InvalidSyntax("".to_string())),
             ("(define)", EvalError::InvalidSyntax(format!(""))),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
@@ -662,12 +663,6 @@ mod test {
                     EvalError::ZeroDivision | EvalError::NotImplementedSyntax => {
                         assert_eq!(expected, e)
                     }
-                    EvalError::General(_) => {
-                        if let EvalError::General(_) = e {
-                        } else {
-                            panic!("expected {:?}. but {:?}.", expected, e);
-                        }
-                    }
                     EvalError::InvalidSyntax(_) => {
                         if let EvalError::InvalidSyntax(_) = e {
                         } else {
@@ -687,27 +682,6 @@ mod test {
                         }
                     }
                 },
-            }
-        }
-    }
-    #[test]
-    fn test_eval_ng_general() {
-        use std::collections::HashMap;
-
-        let tests = vec![
-            //
-            ("(< 1)", EvalError::General("fake".to_string())),
-            ("(> 1)", EvalError::General("fake".to_string())),
-        ];
-
-        let env = env::new_env(HashMap::new());
-        for (input, _) in tests.into_iter() {
-            let l = lexer::lex(input).unwrap();
-            let p = parser::parse_program(l).unwrap();
-            match eval(p, &env) {
-                Ok(_) => panic!("expected err. but ok."),
-                Err(EvalError::General(_)) => { /*ok*/ }
-                Err(e) => panic!(format!("expected general error. but [{:?}]", e)),
             }
         }
     }

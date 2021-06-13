@@ -114,6 +114,7 @@ where
         "cond" => Token::COND,
         "else" => Token::ELSE,
         "let" => Token::LET,
+        "lambda" => Token::LAMBDA,
         _ => Token::VAR(s),
     }
 }
@@ -168,6 +169,18 @@ mod test {
             ("#t", vec![TRUE]),
             (" #t ", vec![TRUE]),
             ("#f", vec![FALSE]),
+            (
+                "(lambda (a) a) ",
+                vec![
+                    LPAREN,
+                    LAMBDA,
+                    LPAREN,
+                    VAR("a".to_string()),
+                    RPAREN,
+                    VAR("a".to_string()),
+                    RPAREN,
+                ],
+            ),
         ];
         for (input, expected) in tests.into_iter() {
             assert_eq!(expected, lex(input).unwrap());

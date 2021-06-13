@@ -1,4 +1,6 @@
 extern crate num;
+use crate::env::RefEnv;
+use crate::parser::Unit;
 use num::rational::{Ratio, Rational64};
 use std::fmt;
 use std::iter::{Product, Sum};
@@ -12,6 +14,8 @@ pub enum Object {
     Num(Number),
     /// 数
     Pair(Box<Object>, Box<Object>),
+    /// クロージャ
+    Closure(Vec<String>, Vec<Unit>, RefEnv),
     /// nil
     Nil,
     /// 未定義．
@@ -72,6 +76,9 @@ fn to_string_pair_second(second: &Object, collecting: &mut String) {
         Object::Pair(f, s) => {
             to_string_pair_rec(&*f, &*s, collecting);
         }
+        Object::Closure(_, _, _) => {
+            unimplemented!()
+        }
     }
 }
 
@@ -83,6 +90,7 @@ impl fmt::Display for Object {
             Self::Nil => write!(f, "()"),
             Self::Undef => write!(f, "{}", to_string_undef()),
             Self::Pair(first, second) => write!(f, "{}", to_string_pair(&*first, &*second)),
+            Self::Closure(_, _, _) => unimplemented!(),
         }
     }
 }

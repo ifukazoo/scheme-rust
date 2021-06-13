@@ -107,7 +107,7 @@ fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax(format!("引き算の引数が0.")));
+        return Err(EvalError::InvalidSyntax("引き算の引数が0.".to_string()));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
@@ -123,7 +123,7 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax(format!("割り算の引数が0.")));
+        return Err(EvalError::InvalidSyntax("割り算の引数が0.".to_string()));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
@@ -161,14 +161,14 @@ fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax(format!("set!の引数が1でない.")));
+        return Err(EvalError::InvalidSyntax("set!の引数が1でない.".to_string()));
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
         Unit::Paren(_) => {
-            return Err(EvalError::InvalidSyntax(format!(
-                "set!の1st引数がシンボルでない.()"
-            )));
+            return Err(EvalError::InvalidSyntax(
+                "set!の1st引数がシンボルでない.".to_string(),
+            ));
         }
         Unit::Bare(a) => match a {
             // (set! 1 ...)
@@ -194,7 +194,9 @@ fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax(format!("define required 1 arg.")));
+        return Err(EvalError::InvalidSyntax(
+            "define required 1 arg.".to_string(),
+        ));
     }
     let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
@@ -223,12 +225,12 @@ fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         env::set_value(env, var, value);
         Ok(Object::Undef)
     } else {
-        Err(EvalError::InvalidSyntax(format!("defineの引数が3以上.")))
+        Err(EvalError::InvalidSyntax("defineの引数が3以上.".to_string()))
     }
 }
 fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax(format!("consの引数が2以外.")));
+        return Err(EvalError::InvalidSyntax("consの引数が2以外.".to_string()));
     }
     let lhs = args.get(0).unwrap();
     let lhs = eval(lhs.clone(), env)?;
@@ -238,24 +240,28 @@ fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax(format!("carの引数が1以外")));
+        return Err(EvalError::InvalidSyntax("carの引数が1以外".to_string()));
     }
     let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(f, _) => Ok(*f),
-        _ => Err(EvalError::InvalidSyntax(format!("carの引数がペアでない."))),
+        _ => Err(EvalError::InvalidSyntax(
+            "carの引数がペアでない.".to_string(),
+        )),
     }
 }
 fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax(format!("cdrの引数が1以外.")));
+        return Err(EvalError::InvalidSyntax("cdrの引数が1以外.".to_string()));
     }
     let elem = args.get(0).unwrap();
     let obj = eval(elem.clone(), env)?;
     match obj {
         Object::Pair(_, s) => Ok(*s),
-        _ => Err(EvalError::InvalidSyntax(format!("cdrの引数がペアでない."))),
+        _ => Err(EvalError::InvalidSyntax(
+            "cdrの引数がペアでない.".to_string(),
+        )),
     }
 }
 fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -268,7 +274,7 @@ fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax(format!("eq?の引数が2以外.")));
+        return Err(EvalError::InvalidSyntax("eq?の引数が2以外.".to_string()));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -292,7 +298,7 @@ fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::InvalidSyntax(format!("notの引数が1以外.")));
+        return Err(EvalError::InvalidSyntax("notの引数が1以外.".to_string()));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -303,9 +309,9 @@ fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if !(args.len() == 2 || args.len() == 3) {
-        return Err(EvalError::InvalidSyntax(format!(
-            "if式の引数が2 or 3 以外."
-        )));
+        return Err(EvalError::InvalidSyntax(
+            "if式の引数が2 or 3 以外.".to_string(),
+        ));
     }
     let cond = args.get(0).unwrap();
     let cond = eval(cond.clone(), env)?;
@@ -323,9 +329,9 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(alt)
             }
         }
-        _ => Err(EvalError::InvalidSyntax(format!(
-            "if式にbool式以外が指定されている."
-        ))),
+        _ => Err(EvalError::InvalidSyntax(
+            "if式にbool式以外が指定されている.".to_string(),
+        )),
     }
 }
 fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -337,22 +343,22 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     )
     */
     if args.is_empty() {
-        return Err(EvalError::InvalidSyntax(format!("cond式の引数が0.")));
+        return Err(EvalError::InvalidSyntax("cond式の引数が0.".to_string()));
     }
     let mut result = Object::Undef;
     for arg in args.into_iter() {
         match arg {
             Unit::Bare(_) => {
-                return Err(EvalError::InvalidSyntax(format!(
-                    "cond式の節がかっこ形式でない."
-                )))
+                return Err(EvalError::InvalidSyntax(
+                    "cond式の節がかっこ形式でない.".to_string(),
+                ))
             }
             Unit::Paren(v) => {
                 if v.len() != 2 {
                     // (cond (#t 1 3))
-                    return Err(EvalError::InvalidSyntax(format!(
-                        "cond式の節に引数が2以外のものがある."
-                    )));
+                    return Err(EvalError::InvalidSyntax(
+                        "cond式の節に引数が2以外のものがある.".to_string(),
+                    ));
                 }
                 let first = v.get(0).unwrap();
                 match first {
@@ -382,31 +388,31 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // (let () () ())
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax(format!("let式の引数が2以外.")));
+        return Err(EvalError::InvalidSyntax("let式の引数が2以外.".to_string()));
     }
     let let_env = new_env(HashMap::new());
     let set_statement = args.get(0).unwrap();
     let exp = args.get(1).unwrap();
     match set_statement {
         // (let a ())
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax(format!(
-            "let式の定義部分がかっこ形式でない."
-        ))),
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "let式の定義部分がかっこ形式でない.".to_string(),
+        )),
         Unit::Paren(units) => {
             for unit in units.iter() {
                 match unit {
                     // (let (a) ())
                     Unit::Bare(_) => {
-                        return Err(EvalError::InvalidSyntax(format!(
-                            "let式の定義部分にかっこ形式でないものがある."
-                        )))
+                        return Err(EvalError::InvalidSyntax(
+                            "let式の定義部分にかっこ形式でないものがある.".to_string(),
+                        ))
                     }
                     Unit::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
                             // (let ((a b c)) ())
-                            return Err(EvalError::InvalidSyntax(format!(
-                                "let式の定義部分に要素数が2以外のものがある."
-                            )));
+                            return Err(EvalError::InvalidSyntax(
+                                "let式の定義部分に要素数が2以外のものがある.".to_string(),
+                            ));
                         }
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
@@ -415,9 +421,9 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                             set_value(&let_env, &key, value);
                         } else {
                             // (let ((1 0)) ())
-                            return Err(EvalError::InvalidSyntax(format!(
-                                "let式の定義部分にシンボル以外のものが指定された."
-                            )));
+                            return Err(EvalError::InvalidSyntax(
+                                "let式の定義部分にシンボル以外のものが指定された.".to_string(),
+                            ));
                         }
                     }
                 }
@@ -434,9 +440,9 @@ fn fold_cmp(
     env: &RefEnv,
 ) -> Result<Object, EvalError> {
     if args.len() < 2 {
-        return Err(EvalError::InvalidSyntax(format!(
-            "application requires at least two argument."
-        )));
+        return Err(EvalError::InvalidSyntax(
+            "application requires at least two argument.".to_string(),
+        ));
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;

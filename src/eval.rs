@@ -23,7 +23,7 @@ pub enum EvalError {
 pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
     match element {
         Unit::Bare(a) => eval_atom(a, env),
-        Unit::Paren(v) => eval_vector(v, env),
+        Unit::Paren(v) => eval_paren(v, env),
     }
 }
 pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
@@ -37,7 +37,7 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
         _ => Err(EvalError::NotImplementedSyntax),
     }
 }
-fn eval_vector(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if elements.is_empty() {
         Ok(Object::Nil)
     } else {

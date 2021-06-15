@@ -15,7 +15,7 @@ pub enum Object {
     /// 数
     Pair(Box<Object>, Box<Object>),
     /// クロージャ
-    Closure(Vec<String>, Vec<Unit>, RefEnv),
+    Closure(Vec<Unit>, Unit, RefEnv),
     /// nil
     Nil,
     /// 未定義．
@@ -90,7 +90,8 @@ impl fmt::Display for Object {
             Self::Nil => write!(f, "()"),
             Self::Undef => write!(f, "{}", to_string_undef()),
             Self::Pair(first, second) => write!(f, "{}", to_string_pair(&*first, &*second)),
-            Self::Closure(_, _, _) => unimplemented!(),
+            // TODO
+            Self::Closure(_, _, _) => write!(f, "closure"),
         }
     }
 }

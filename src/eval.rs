@@ -46,10 +46,12 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         match op {
             // (+ 1 2), (define ), (lambda ) ,...
             Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
-            // (myfunc 1)
             // TODO lambda対応後
+            // (myfunc 1)
             // Unit::Bare(Atom::Ident(f)) => {
             Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
+            // TODO lambda対応後
+            // ((lambda (a) a) 0)
             Unit::Paren(v) => Err(EvalError::InvalidApplication(format!("{:?}", v))),
         }
     }
@@ -74,6 +76,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
+        "lambda" => lambda(args, env),
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
 }
@@ -431,6 +434,25 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             add_outer(&let_env, env);
             let obj = eval(exp.clone(), &let_env)?;
             Ok(obj)
+        }
+    }
+}
+fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    // (lambda () exp)
+    if args.len() < 2 {
+        return Err(EvalError::InvalidSyntax(
+            "lambda式の引数が2より小さい.".to_string(),
+        ));
+    }
+    let first = args.get(0).unwrap();
+    match first {
+        // (lambda a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "lambda式のparams部分がかっこ形式でない.".to_string(),
+        )),
+        Unit::Paren(params) => {
+            let exp = args.get(1).unwrap();
+            Ok(Object::Closure(params.clone(), exp.clone(), env.clone()))
         }
     }
 }

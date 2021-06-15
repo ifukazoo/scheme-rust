@@ -84,6 +84,7 @@ where
         Token::COND => Ok(Atom::App("cond")),
         Token::ELSE => Ok(Atom::App("else")),
         Token::LET => Ok(Atom::App("let")),
+        Token::LAMBDA => Ok(Atom::App("lambda")),
         Token::VAR(s) => Ok(Atom::Ident(s)),
         _ => Err(ParseError::IllegalSyntax(t)),
     }

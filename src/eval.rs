@@ -18,6 +18,8 @@ pub enum EvalError {
     InvalidSyntax(String),
     /// 不明な変数
     UnboundVariable(String),
+    /// 引数異常
+    WrongNumberArguments(usize, usize),
 }
 
 pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
@@ -52,7 +54,27 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
             // TODO lambda対応後
             // ((lambda (a) a) 0)
-            Unit::Paren(v) => Err(EvalError::InvalidApplication(format!("{:?}", v))),
+            Unit::Paren(v) => {
+                // ((lambda (a) a) 0)
+                let f = eval_paren(v.clone(), env)?;
+                if let Object::Closure(params, block, closed_env) = f {
+                    if params.len() != operand.len() {
+                        return Err(EvalError::WrongNumberArguments(params.len(), operand.len()));
+                    }
+
+                    let call_env = new_env(HashMap::new());
+                    for (param, arg) in params.into_iter().zip(operand.into_iter()) {
+                        if let Unit::Bare(Atom::Ident(key)) = param {
+                            let arg = eval(arg.clone(), env)?;
+                            set_value(&call_env, &key, arg);
+                        }
+                    }
+                    add_outer(&call_env, &closed_env);
+                    eval(block, &call_env)
+                } else {
+                    return Err(EvalError::InvalidApplication(format!("{:?}", v)));
+                }
+            }
         }
     }
 }
@@ -631,6 +653,28 @@ mod test {
             ("(let ((a 1)) (+ a 2))", Object::Num(Int(3))),
             ("(let ((a 1) (b 2)) (+ a b))", Object::Num(Int(3))),
             ("(let () (+ 1 2))", Object::Num(Int(3))),
+            //
+            ("((lambda () 1))", Object::Num(Int(1))),
+            ("((lambda (p) p) 2)", Object::Num(Int(2))),
+            ("((lambda (a b) (+ a b)) 1 2)", Object::Num(Int(3))),
+            (
+                "(
+                begin
+                (define a 1)
+                (define b 2)
+                ((lambda (a b) (+ a b)) 3 4)
+                )",
+                Object::Num(Int(7)),
+            ),
+            (
+                "(
+                begin
+                (define a 1)
+                (define b 2)
+                ((lambda (c d) (+ a b)) 3 4)
+                )",
+                Object::Num(Int(3)),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -704,6 +748,12 @@ mod test {
                         }
                     }
                     EvalError::UnboundVariable(_) => {
+                        if let EvalError::UnboundVariable(_) = e {
+                        } else {
+                            panic!("expected {:?}. but {:?}.", expected, e);
+                        }
+                    }
+                    EvalError::WrongNumberArguments(_, _) => {
                         if let EvalError::UnboundVariable(_) = e {
                         } else {
                             panic!("expected {:?}. but {:?}.", expected, e);

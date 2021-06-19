@@ -57,28 +57,11 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             Unit::Paren(v) => {
                 // ((lambda (a) a) 0)
                 let f = eval_paren(v.clone(), env)?;
-                if let Object::Closure(params, block, closed_env) = f {
-                    if params.len() != operand.len() {
-                        return Err(EvalError::WrongNumberArguments(params.len(), operand.len()));
+                match f {
+                    Object::Closure(params, block, closed_env) => {
+                        eval_closure(params, block, closed_env, operand.to_vec(), env)
                     }
-                    match block {
-                        // 評価部のないlambda式
-                        // ( (lambda ()) )
-                        None => Ok(Object::Num(Number::Int(0))),
-                        Some(block) => {
-                            let call_env = new_env(HashMap::new());
-                            for (param, arg) in params.into_iter().zip(operand.into_iter()) {
-                                if let Unit::Bare(Atom::Ident(key)) = param {
-                                    let arg = eval(arg.clone(), env)?;
-                                    set_value(&call_env, &key, arg);
-                                }
-                            }
-                            add_outer(&call_env, &closed_env);
-                            eval(block, &call_env)
-                        }
-                    }
-                } else {
-                    return Err(EvalError::InvalidApplication(format!("{:?}", v)));
+                    _ => Err(EvalError::InvalidApplication(format!("{:?}", v))),
                 }
             }
         }
@@ -489,6 +472,33 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             } else {
                 Ok(Object::Closure(params.clone(), None, env.clone()))
             }
+        }
+    }
+}
+fn eval_closure(
+    params: Vec<Unit>,
+    block: Option<Unit>,
+    closed_env: RefEnv,
+    args: Vec<Unit>,
+    env: &RefEnv,
+) -> Result<Object, EvalError> {
+    if params.len() != args.len() {
+        return Err(EvalError::WrongNumberArguments(params.len(), args.len()));
+    }
+    match block {
+        // 評価部のないlambda式
+        // ( (lambda ()) )
+        None => Ok(Object::Num(Number::Int(0))),
+        Some(block) => {
+            let call_env = new_env(HashMap::new());
+            for (param, arg) in params.into_iter().zip(args.into_iter()) {
+                if let Unit::Bare(Atom::Ident(key)) = param {
+                    let arg = eval(arg.clone(), env)?;
+                    set_value(&call_env, &key, arg);
+                }
+            }
+            add_outer(&call_env, &closed_env);
+            eval(block, &call_env)
         }
     }
 }

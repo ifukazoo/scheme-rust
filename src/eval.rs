@@ -48,12 +48,17 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         match op {
             // (+ 1 2), (define ), (lambda ) ,...
             Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
-            // TODO lambda対応後
-            // (myfunc 1)
-            // Unit::Bare(Atom::Ident(f)) => {
+            // (myfunc 1 2 3)
+            Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
+                None => Err(EvalError::UnboundVariable(name.to_string())),
+                Some(f) => match f {
+                    Object::Closure(params, block, closed_env) => {
+                        eval_closure(params, block, closed_env, operand.to_vec(), env)
+                    }
+                    _ => Err(EvalError::InvalidApplication(format!("{:?}", f))),
+                },
+            },
             Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
-            // TODO lambda対応後
-            // ((lambda (a) a) 0)
             Unit::Paren(v) => {
                 // ((lambda (a) a) 0)
                 let f = eval_paren(v.clone(), env)?;
@@ -701,6 +706,24 @@ mod test {
             ),
             ("((lambda ()))", Object::Num(Int(0))),
             ("((lambda (a b c)) 1 2 3)", Object::Num(Int(0))),
+            //
+            (
+                "(
+                begin
+                (define add (lambda (a b) (+ a b)))
+                (add 1 2)
+                )",
+                Object::Num(Int(3)),
+            ),
+            (
+                "(
+                begin
+                (define add)
+                (set! add (lambda (a b) (+ a b)))
+                (add 1 2)
+                )",
+                Object::Num(Int(3)),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

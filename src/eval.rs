@@ -61,16 +61,22 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     if params.len() != operand.len() {
                         return Err(EvalError::WrongNumberArguments(params.len(), operand.len()));
                     }
-
-                    let call_env = new_env(HashMap::new());
-                    for (param, arg) in params.into_iter().zip(operand.into_iter()) {
-                        if let Unit::Bare(Atom::Ident(key)) = param {
-                            let arg = eval(arg.clone(), env)?;
-                            set_value(&call_env, &key, arg);
+                    match block {
+                        // 評価部のないlambda式
+                        // ( (lambda ()) )
+                        None => Ok(Object::Num(Number::Int(0))),
+                        Some(block) => {
+                            let call_env = new_env(HashMap::new());
+                            for (param, arg) in params.into_iter().zip(operand.into_iter()) {
+                                if let Unit::Bare(Atom::Ident(key)) = param {
+                                    let arg = eval(arg.clone(), env)?;
+                                    set_value(&call_env, &key, arg);
+                                }
+                            }
+                            add_outer(&call_env, &closed_env);
+                            eval(block, &call_env)
                         }
                     }
-                    add_outer(&call_env, &closed_env);
-                    eval(block, &call_env)
                 } else {
                     return Err(EvalError::InvalidApplication(format!("{:?}", v)));
                 }
@@ -461,9 +467,9 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // (lambda () exp)
-    if args.len() < 2 {
+    if args.len() < 1 {
         return Err(EvalError::InvalidSyntax(
-            "lambda式の引数が2より小さい.".to_string(),
+            "lambda式の形式が間違っている.".to_string(),
         ));
     }
     let first = args.get(0).unwrap();
@@ -473,8 +479,16 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式のparams部分がかっこ形式でない.".to_string(),
         )),
         Unit::Paren(params) => {
-            let exp = args.get(1).unwrap();
-            Ok(Object::Closure(params.clone(), exp.clone(), env.clone()))
+            if args.len() > 1 {
+                let exp = args.get(1).unwrap();
+                Ok(Object::Closure(
+                    params.clone(),
+                    Some(exp.clone()),
+                    env.clone(),
+                ))
+            } else {
+                Ok(Object::Closure(params.clone(), None, env.clone()))
+            }
         }
     }
 }
@@ -675,6 +689,8 @@ mod test {
                 )",
                 Object::Num(Int(3)),
             ),
+            ("((lambda ()))", Object::Num(Int(0))),
+            ("((lambda (a b c)) 1 2 3)", Object::Num(Int(0))),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -723,6 +739,7 @@ mod test {
                 "(let ((1 2)) (+ 1 2))",
                 EvalError::InvalidSyntax(format!("")),
             ),
+            ("(lambda)", EvalError::InvalidSyntax(format!(""))),
         ];
 
         let env = env::new_env(HashMap::new());

@@ -15,7 +15,7 @@ pub enum Object {
     /// 数
     Pair(Box<Object>, Box<Object>),
     /// クロージャ
-    Closure(Vec<Unit>, Unit, RefEnv),
+    Closure(Vec<Unit>, Option<Unit>, RefEnv),
     /// nil
     Nil,
     /// 未定義．

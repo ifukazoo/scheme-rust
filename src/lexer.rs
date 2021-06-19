@@ -19,46 +19,20 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             // 空白は飛ばす
             input.next().unwrap();
         } else if c.is_alphabetic() || c == '#' {
+            // #t と #f を取り込む
             let token = lex_string(&mut input);
             tokens.push(token);
         } else {
             match c {
                 '(' | ')' | '*' | '/' | '<' | '>' => {
-                    tokens.push(Token::from_char(c).unwrap());
+                    tokens.push(Token::from_char(c));
                     input.next().unwrap();
                 }
                 '+' | '-' => {
-                    // 記号を刈り取る
-                    input.next().unwrap();
-                    // 次が数字のトークンであれば数として刈り取る
-                    match input.peek() {
-                        Some(next) => {
-                            if next.is_digit(10) {
-                                match lex_int(&mut input) {
-                                    Token::INT(i) => {
-                                        if c == '-' {
-                                            tokens.push(Token::INT(-i))
-                                        } else {
-                                            tokens.push(Token::INT(i))
-                                        }
-                                    }
-                                    _ => unreachable!(),
-                                };
-                            } else {
-                                // "+@#.."
-                                // 次の文字は刈り取らず，記号だけを取り込む
-                                tokens.push(Token::from_char(c).unwrap());
-                            }
-                        }
-                        // "+"
-                        // 次の文字は刈り取らず，記号だけを取り込む
-                        None => tokens.push(Token::from_char(c).unwrap()),
-                    }
+                    let token = lex_sign_head(&mut input);
+                    tokens.push(token);
                 }
-                e => match Token::from_char(e) {
-                    Ok(t) => tokens.push(t),
-                    Err(_) => return Err(LexError::IllegalToken(e)),
-                },
+                e => return Err(LexError::IllegalToken(e)),
             }
         }
     }
@@ -91,6 +65,7 @@ where
     let mut s = String::from(c);
 
     while let Some(&c) = input.peek() {
+        // set!, eq? などがあるのでこの段階では一緒に取り込んでいる．
         if c.is_alphanumeric() || c == '!' || c == '?' {
             s.push(c);
             input.next().unwrap();
@@ -118,6 +93,37 @@ where
         _ => Token::VAR(s),
     }
 }
+// +,-記号が先頭にあるトークンの解析
+fn lex_sign_head<Tokens>(input: &mut Peekable<Tokens>) -> Token
+where
+    Tokens: Iterator<Item = char>,
+{
+    // 正負の記号を刈り取る
+    let sign = input.next().unwrap();
+
+    // -1, +1 など次が数字のトークンであれば数として刈り取る
+    match input.peek() {
+        Some(next) => {
+            if next.is_digit(10) {
+                if let Token::INT(i) = lex_int(input) {
+                    if sign == '-' {
+                        Token::INT(-i)
+                    } else {
+                        Token::INT(i)
+                    }
+                } else {
+                    // 必ず数字にマッチするのでここにはこない
+                    unreachable!()
+                }
+            } else {
+                // +,- 記号のトークンだけを返す
+                Token::from_char(sign)
+            }
+        }
+        // +,- 記号のトークン
+        None => Token::from_char(sign),
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -142,6 +148,12 @@ mod test {
                     RPAREN,
                 ],
             ),
+            ("+1", vec![INT(1)]),
+            ("-1", vec![INT(-1)]),
+            ("+0", vec![INT(0)]),
+            ("-0", vec![INT(0)]),
+            ("-", vec![MINUS]),
+            ("-c", vec![MINUS, VAR("c".to_string())]),
             ("() ", vec![LPAREN, RPAREN]),
             (
                 "(begin abc) ",

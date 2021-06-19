@@ -32,17 +32,18 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn from_char(c: char) -> Result<Self, ()> {
+    pub fn from_char(c: char) -> Self {
         match c {
-            ')' => Ok(Self::RPAREN),
-            '(' => Ok(Self::LPAREN),
-            '*' => Ok(Self::ASTER),
-            '+' => Ok(Self::PLUS),
-            '-' => Ok(Self::MINUS),
-            '/' => Ok(Self::SLASH),
-            '>' => Ok(Self::GT),
-            '<' => Ok(Self::LT),
-            _ => Err(()),
+            ')' => Self::RPAREN,
+            '(' => Self::LPAREN,
+            '*' => Self::ASTER,
+            '+' => Self::PLUS,
+            '-' => Self::MINUS,
+            '/' => Self::SLASH,
+            '>' => Self::GT,
+            '<' => Self::LT,
+            // 呼び出し側でチェックは終わっている
+            _ => unreachable!(),
         }
     }
 }

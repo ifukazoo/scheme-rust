@@ -31,6 +31,7 @@ pub enum Atom {
 pub enum ParseError {
     EmptyProgram,
     UnclosedParen,
+    ExtraToken(Token),
     IllegalSyntax(Token),
 }
 
@@ -43,7 +44,13 @@ pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
         Ok(Unit::Bare(a))
     } else {
         match parse_array(&mut tokens) {
-            Ok(a) => Ok(Unit::Paren(a)),
+            Ok(a) => {
+                if tokens.peek().is_none() {
+                    Ok(Unit::Paren(a))
+                } else {
+                    Err(ParseError::ExtraToken(tokens.next().unwrap()))
+                }
+            }
             Err(e) => Err(e),
         }
     }
@@ -185,6 +192,7 @@ mod test {
             ("  ", ParseError::EmptyProgram),
             ("( ", ParseError::IllegalSyntax(Token::LPAREN)),
             (" )", ParseError::IllegalSyntax(Token::RPAREN)),
+            ("())", ParseError::ExtraToken(Token::RPAREN)),
         ];
 
         for (input, expected) in tests.into_iter() {

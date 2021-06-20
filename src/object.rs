@@ -6,15 +6,16 @@ use std::fmt;
 use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
 
+/// scheme評価結果値
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     /// BOOLEAN
     Bool(bool),
     /// 数
     Num(Number),
-    /// 数
+    /// ペア
     Pair(Box<Object>, Box<Object>),
-    /// クロージャ
+    /// クロージャー
     Closure(Vec<Unit>, Option<Unit>, RefEnv),
     /// nil
     Nil,
@@ -22,10 +23,14 @@ pub enum Object {
     Undef,
 }
 
+// ペアを作成する
 pub fn cons_pair(lhs: Object, rhs: Object) -> Object {
     Object::Pair(Box::new(lhs), Box::new(rhs))
 }
+// リスト(Nilの終端に持つペアの再起構造)を作成する
 pub fn build_list(args: Vec<Object>) -> Object {
+    // [1,2,3] => [3,nil] => [2,[3,nil]] => [1,[2,[3,nil]]]
+
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
         o = cons_pair(arg.clone(), o);
@@ -43,12 +48,12 @@ fn to_string_bool(b: bool) -> String {
 fn to_string_undef() -> String {
     "<#undef>".to_string()
 }
-fn to_string_pair(first: &Object, second: &Object) -> String {
+fn to_string_pair(first: Box<Object>, second: Box<Object>) -> String {
     let mut buf = String::new();
     to_string_pair_rec(first, second, &mut buf);
     buf
 }
-fn to_string_pair_rec(first: &Object, second: &Object, collecting: &mut String) {
+fn to_string_pair_rec(first: Box<Object>, second: Box<Object>, collecting: &mut String) {
     // ペアの先頭を出力
     if collecting.is_empty() {
         collecting.push_str(&format!("({}", first));
@@ -57,16 +62,16 @@ fn to_string_pair_rec(first: &Object, second: &Object, collecting: &mut String) 
     }
     to_string_pair_second(second, collecting);
 }
-fn to_string_pair_second(second: &Object, collecting: &mut String) {
-    match second {
-        // ペア終端が()の場合は何も出力しない．
+fn to_string_pair_second(second: Box<Object>, collecting: &mut String) {
+    match *second {
+        // ペア終端がnilの場合は値分は何も出力せず，終端の`)`だけ出力
         Object::Nil => collecting.push(')'),
         Object::Num(n) => {
             collecting.push_str(&format!(" . {}", n));
             collecting.push(')');
         }
         Object::Bool(b) => {
-            collecting.push_str(&format!(" . {}", to_string_bool(*b)));
+            collecting.push_str(&format!(" . {}", to_string_bool(b)));
             collecting.push(')');
         }
         Object::Undef => {
@@ -74,8 +79,9 @@ fn to_string_pair_second(second: &Object, collecting: &mut String) {
             collecting.push(')');
         }
         Object::Pair(f, s) => {
-            to_string_pair_rec(&*f, &*s, collecting);
+            to_string_pair_rec(f, s, collecting);
         }
+        // TODO
         Object::Closure(_, _, _) => {
             unimplemented!()
         }
@@ -89,7 +95,9 @@ impl fmt::Display for Object {
             Self::Num(n) => write!(f, "{}", n),
             Self::Nil => write!(f, "()"),
             Self::Undef => write!(f, "{}", to_string_undef()),
-            Self::Pair(first, second) => write!(f, "{}", to_string_pair(&*first, &*second)),
+            Self::Pair(first, second) => {
+                write!(f, "{}", to_string_pair(first.clone(), second.clone()))
+            }
             // TODO
             Self::Closure(_, _, _) => write!(f, "closure"),
         }

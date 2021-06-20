@@ -87,7 +87,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "car" => car(args, env),
         "cdr" => cdr(args, env),
         "list" => list(args, env),
-        "eq?" => eq(args, env),
+        "eq" => eq(args, env),
         "not" => not(args, env),
         "if" => if_exp(args, env),
         "cond" => cond(args, env),

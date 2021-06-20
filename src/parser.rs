@@ -21,20 +21,24 @@ pub enum Atom {
     Bool(bool),
     // Str(String)
     // 文字列. 'hello'
-
-    // その他の変数
+    /// 識別子
     Ident(String),
 }
 
 // 構文解析エラー
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
+    /// 空のプログラム
     EmptyProgram,
+    /// 閉じてないかっこ
     UnclosedParen,
+    /// 余分なトークン
     ExtraToken(Token),
+    /// 不正な構文
     IllegalSyntax(Token),
 }
 
+/// 構文解析
 pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
     let mut tokens = tokens.into_iter().peekable();
     if tokens.len() == 0 {
@@ -56,6 +60,7 @@ pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
     }
 }
 
+// 単体要素の解析
 fn parse_atom<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Atom, ParseError>
 where
     Tokens: Iterator<Item = Token>,
@@ -78,7 +83,7 @@ where
         Token::CAR => Ok(Atom::App("car")),
         Token::CDR => Ok(Atom::App("cdr")),
         Token::LIST => Ok(Atom::App("list")),
-        Token::EQUAL => Ok(Atom::App("eq?")),
+        Token::EQUAL => Ok(Atom::App("eq")),
         Token::NOT => Ok(Atom::App("not")),
         Token::IF => Ok(Atom::App("if")),
         Token::COND => Ok(Atom::App("cond")),
@@ -89,6 +94,8 @@ where
         _ => Err(ParseError::IllegalSyntax(t)),
     }
 }
+
+// かっこに囲まれた複数要素の解析
 fn parse_array<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Vec<Unit>, ParseError>
 where
     Tokens: Iterator<Item = Token>,
@@ -110,6 +117,7 @@ where
             }
         }
     }
+    // while を抜ける条件は右かっこでbreak or peek()==NONE
 
     if tokens.peek().is_none() {
         Err(ParseError::UnclosedParen)

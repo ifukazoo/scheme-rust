@@ -1,4 +1,5 @@
 use crate::token::Token;
+use std::fmt;
 use std::iter::Peekable;
 
 /// プログラムの要素
@@ -23,6 +24,28 @@ pub enum Atom {
     // 文字列. 'hello'
     /// 識別子
     Ident(String),
+}
+impl fmt::Display for Unit {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Bare(a) => match a {
+                Atom::App(app) => write!(f, "{}", app),
+                Atom::Num(n) => write!(f, "{}", n),
+                Atom::Bool(b) => write!(f, "{}", b),
+                Atom::Ident(i) => write!(f, "{}", i),
+            },
+            Self::Paren(units) => {
+                let mut s = String::from("(");
+                let mut sep = String::from("");
+                for unit in units {
+                    s.push_str(&format!("{}{}", sep, unit));
+                    sep = " ".to_string();
+                }
+                s.push(')');
+                write!(f, "{}", s)
+            }
+        }
+    }
 }
 
 // 構文解析エラー
@@ -209,6 +232,25 @@ mod test {
                 Ok(_) => panic!("expected err. but ok."),
                 Err(e) => assert_eq!(expected, e),
             }
+        }
+    }
+    #[test]
+    fn test_unit_disp() {
+        let tests = vec![
+            (Unit::Bare(Atom::App("a")), "a"),
+            (Unit::Bare(Atom::Bool(true)), "true"),
+            (
+                Unit::Paren(vec![
+                    Unit::Bare(Atom::App("list")),
+                    Unit::Bare(Atom::App("a")),
+                    Unit::Bare(Atom::Bool(true)),
+                ]),
+                "(list a true)",
+            ),
+        ];
+
+        for (input, expected) in tests {
+            assert_eq!(expected, format!("{}", input))
         }
     }
 }

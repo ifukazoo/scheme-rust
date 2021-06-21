@@ -50,42 +50,37 @@ fn to_string_undef() -> String {
 }
 fn to_string_pair(first: Box<Object>, second: Box<Object>) -> String {
     let mut buf = String::new();
-    to_string_pair_rec(first, second, &mut buf);
+    to_string_pair_1st(first, second, &mut buf);
     buf
 }
-fn to_string_pair_rec(first: Box<Object>, second: Box<Object>, collecting: &mut String) {
+fn to_string_pair_1st(first: Box<Object>, second: Box<Object>, collecting: &mut String) {
     // ペアの先頭を出力
     if collecting.is_empty() {
         collecting.push_str(&format!("({}", first));
     } else {
         collecting.push_str(&format!(" {}", first));
     }
-    to_string_pair_second(second, collecting);
+    to_string_pair_2nd(second, collecting);
 }
-fn to_string_pair_second(second: Box<Object>, collecting: &mut String) {
+fn to_string_pair_2nd(second: Box<Object>, collecting: &mut String) {
     match *second {
         // ペア終端がnilの場合は値分は何も出力せず，終端の`)`だけ出力
         Object::Nil => collecting.push(')'),
-        Object::Num(n) => {
-            collecting.push_str(&format!(" . {}", n));
-            collecting.push(')');
-        }
-        Object::Bool(b) => {
-            collecting.push_str(&format!(" . {}", to_string_bool(b)));
-            collecting.push(')');
-        }
-        Object::Undef => {
-            collecting.push_str(&format!(" . {}", to_string_undef()));
-            collecting.push(')');
-        }
         Object::Pair(f, s) => {
-            to_string_pair_rec(f, s, collecting);
+            to_string_pair_1st(f, s, collecting);
         }
-        // TODO
-        Object::Closure(_, _, _) => {
-            unimplemented!()
+        etc => {
+            collecting.push_str(&format!(" . {}", etc));
+            collecting.push(')');
         }
     }
+}
+fn to_string_closure(params: &Vec<Unit>) -> String {
+    let mut ps = String::new();
+    for p in params {
+        ps.push_str(&format!(" {}", &p));
+    }
+    format!("#<closure (#f{})>", ps)
 }
 
 impl fmt::Display for Object {
@@ -98,8 +93,7 @@ impl fmt::Display for Object {
             Self::Pair(first, second) => {
                 write!(f, "{}", to_string_pair(first.clone(), second.clone()))
             }
-            // TODO
-            Self::Closure(_, _, _) => write!(f, "closure"),
+            Self::Closure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
         }
     }
 }

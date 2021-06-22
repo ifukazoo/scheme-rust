@@ -75,7 +75,7 @@ fn to_string_pair_2nd(second: Object, collecting: &mut String) {
         }
     }
 }
-fn to_string_closure(params: &Vec<Unit>) -> String {
+fn to_string_closure(params: &[Unit]) -> String {
     let mut ps = String::new();
     for p in params {
         ps.push_str(&format!(" {}", &p));

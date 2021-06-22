@@ -455,7 +455,7 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // (lambda () exp)
-    if args.len() < 1 {
+    if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "lambda式の形式が間違っている.".to_string(),
         ));

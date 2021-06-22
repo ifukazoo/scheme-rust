@@ -418,7 +418,7 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "let式の定義部分がかっこ形式でない.".to_string(),
         )),
         Unit::Paren(units) => {
-            for unit in units.iter() {
+            for unit in units {
                 match unit {
                     // (let (a) ())
                     Unit::Bare(_) => {

@@ -35,8 +35,8 @@ pub fn get_value(env: &RefEnv, key: &str) -> Option<Object> {
 }
 
 /// この環境の外側に一階層環境を追加する.
-pub fn add_outer(env: &RefEnv, outer_env: &RefEnv) {
-    env.borrow_mut().outer = Some(outer_env.clone());
+pub fn add_outer(inner: &RefEnv, outer_env: &RefEnv) {
+    inner.borrow_mut().outer = Some(outer_env.clone());
 }
 #[cfg(test)]
 mod test {

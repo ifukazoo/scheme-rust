@@ -38,6 +38,23 @@ pub fn build_list(args: Vec<Object>) -> Object {
     o
 }
 
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Bool(b) => write!(f, "{}", to_string_bool(*b)),
+            Self::Num(n) => write!(f, "{}", n),
+            Self::Nil => write!(f, "()"),
+            Self::Undef => write!(f, "{}", to_string_undef()),
+            Self::Pair(first, second) => {
+                let first = first.clone();
+                let second = second.clone();
+                write!(f, "{}", to_string_pair(*first, *second))
+            }
+            Self::Closure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
+        }
+    }
+}
+
 fn to_string_bool(b: bool) -> String {
     if b {
         "#t".to_string()
@@ -81,23 +98,6 @@ fn to_string_closure(params: &[Unit]) -> String {
         ps.push_str(&format!(" {}", &p));
     }
     format!("#<closure (#f{})>", ps)
-}
-
-impl fmt::Display for Object {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Bool(b) => write!(f, "{}", to_string_bool(*b)),
-            Self::Num(n) => write!(f, "{}", n),
-            Self::Nil => write!(f, "()"),
-            Self::Undef => write!(f, "{}", to_string_undef()),
-            Self::Pair(first, second) => {
-                let first = first.clone();
-                let second = second.clone();
-                write!(f, "{}", to_string_pair(*first, *second))
-            }
-            Self::Closure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq)]

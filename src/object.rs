@@ -48,12 +48,12 @@ fn to_string_bool(b: bool) -> String {
 fn to_string_undef() -> String {
     "<#undef>".to_string()
 }
-fn to_string_pair(first: Box<Object>, second: Box<Object>) -> String {
+fn to_string_pair(first: Object, second: Object) -> String {
     let mut buf = String::new();
     to_string_pair_1st(first, second, &mut buf);
     buf
 }
-fn to_string_pair_1st(first: Box<Object>, second: Box<Object>, collecting: &mut String) {
+fn to_string_pair_1st(first: Object, second: Object, collecting: &mut String) {
     // ペアの先頭を出力
     if collecting.is_empty() {
         collecting.push_str(&format!("({}", first));
@@ -62,12 +62,12 @@ fn to_string_pair_1st(first: Box<Object>, second: Box<Object>, collecting: &mut 
     }
     to_string_pair_2nd(second, collecting);
 }
-fn to_string_pair_2nd(second: Box<Object>, collecting: &mut String) {
-    match *second {
+fn to_string_pair_2nd(second: Object, collecting: &mut String) {
+    match second {
         // ペア終端がnilの場合は値分は何も出力せず，終端の`)`だけ出力
         Object::Nil => collecting.push(')'),
-        Object::Pair(f, s) => {
-            to_string_pair_1st(f, s, collecting);
+        Object::Pair(first, second) => {
+            to_string_pair_1st(*first, *second, collecting);
         }
         etc => {
             collecting.push_str(&format!(" . {}", etc));
@@ -91,7 +91,9 @@ impl fmt::Display for Object {
             Self::Nil => write!(f, "()"),
             Self::Undef => write!(f, "{}", to_string_undef()),
             Self::Pair(first, second) => {
-                write!(f, "{}", to_string_pair(first.clone(), second.clone()))
+                let first = first.clone();
+                let second = second.clone();
+                write!(f, "{}", to_string_pair(*first, *second))
             }
             Self::Closure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
         }

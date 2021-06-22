@@ -140,7 +140,11 @@ where
             }
         }
     }
-    // while を抜ける条件は右かっこでbreak or peek()==NONE
+
+    // while を抜ける条件
+    //   右かっこでbreak
+    //   or
+    //   peek() == NONE
 
     if tokens.peek().is_none() {
         Err(ParseError::UnclosedParen)

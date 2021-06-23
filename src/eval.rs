@@ -525,10 +525,12 @@ fn fold_cmp(
     }
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
-    let first = operands[0];
-    let (acc, _) = operands[1..]
-        .iter()
-        .fold((true, first), |(_, prev), x| (cmp(prev, *x), *x));
+    let mut prev = operands[0];
+    let mut acc = true;
+    for operand in operands[1..].into_iter() {
+        acc = cmp(prev, *operand);
+        prev = *operand;
+    }
     Ok(Object::Bool(acc))
 }
 

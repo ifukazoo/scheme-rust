@@ -99,7 +99,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
     }
 }
 
-// Number型を要求するリスト
+// Number型を要求する引数をNumber型のVectorに変換
 fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {
@@ -115,6 +115,7 @@ fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalErro
     }
     Ok(v)
 }
+
 fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;

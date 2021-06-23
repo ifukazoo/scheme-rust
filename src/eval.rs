@@ -98,6 +98,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
     }
 }
 
+// Number型を要求するリスト
 fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {
@@ -133,7 +134,9 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
     let first = operands[0];
+
     // lispの引き算は引数1の場合と複数の場合で計算方法が違う．
+    // (- 2)
     if operands.len() == 1 {
         Ok(Object::Num(Number::Int(-1) * first))
     } else {
@@ -149,6 +152,7 @@ fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
 
+    // (/ 2)
     if operands.len() == 1 {
         let divider = operands[0];
         if divider.is_zero() {

@@ -188,7 +188,9 @@ fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax("set!の引数が1でない.".to_string()));
+        return Err(EvalError::InvalidSyntax(
+            "set!の引数の数が2でない.".to_string(),
+        ));
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)

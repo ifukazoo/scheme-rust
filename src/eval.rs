@@ -119,13 +119,13 @@ fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalErro
 fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
-    let acc = operands.iter().sum();
+    let acc = operands.into_iter().sum();
     Ok(Object::Num(acc))
 }
 fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // 引数をi64の配列に変換して集積する
     let operands = to_num_vec(args, env)?;
-    let acc = operands.iter().product();
+    let acc = operands.into_iter().product();
     Ok(Object::Num(acc))
 }
 fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {

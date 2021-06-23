@@ -215,19 +215,6 @@ impl Sum for Number {
     }
 }
 
-// iter().sum()
-impl<'a> Sum<&'a Self> for Number {
-    fn sum<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = &'a Self>,
-    {
-        let mut s = Self::Int(0);
-        for n in iter {
-            s = s + *n;
-        }
-        s
-    }
-}
 impl Product for Number {
     fn product<I>(iter: I) -> Self
     where
@@ -236,19 +223,6 @@ impl Product for Number {
         let mut s = Self::Int(1);
         for n in iter {
             s = s * n;
-        }
-        s
-    }
-}
-
-impl<'a> Product<&'a Self> for Number {
-    fn product<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = &'a Self>,
-    {
-        let mut s = Self::Int(1);
-        for n in iter {
-            s = s * *n;
         }
         s
     }
@@ -361,7 +335,6 @@ mod test {
             ),
         ];
         for (v, expected) in tests.into_iter() {
-            assert_eq!(expected, v.iter().sum::<Number>());
             assert_eq!(expected, v.into_iter().sum::<Number>())
         }
     }
@@ -383,8 +356,7 @@ mod test {
             ),
         ];
         for (v, expected) in tests.into_iter() {
-            assert_eq!(expected, v.iter().product::<Number>());
-            assert_eq!(expected, v.into_iter().product::<Number>())
+            assert_eq!(expected, v.into_iter().product::<Number>());
         }
     }
 

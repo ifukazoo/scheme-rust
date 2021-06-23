@@ -28,6 +28,7 @@ pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
         Unit::Paren(v) => eval_paren(v, env),
     }
 }
+
 pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
     match atom {
         Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
@@ -43,6 +44,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if elements.is_empty() {
         Ok(Object::Nil)
     } else {
+        // (op operand operand operand ...)
         let op = &elements[0];
         let operand = &elements[1..];
         match op {
@@ -51,12 +53,10 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             // (myfunc 1 2 3)
             Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
-                Some(f) => match f {
-                    Object::Closure(params, block, closed_env) => {
-                        eval_closure(params, block, closed_env, operand.to_vec(), env)
-                    }
-                    _ => Err(EvalError::InvalidApplication(format!("{:?}", f))),
-                },
+                Some(Object::Closure(params, block, closed_env)) => {
+                    eval_closure(params, block, closed_env, operand.to_vec(), env)
+                }
+                Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
             Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
             Unit::Paren(v) => {

@@ -181,8 +181,8 @@ fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
-    for v in args.into_iter() {
-        result = eval(v, env)?;
+    for a in args.into_iter() {
+        result = eval(a, env)?;
     }
     Ok(result)
 }

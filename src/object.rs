@@ -2,6 +2,7 @@ extern crate num;
 use crate::env::RefEnv;
 use crate::parser::Unit;
 use num::rational::{Ratio, Rational64};
+use num::Zero;
 use std::fmt;
 use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
@@ -129,10 +130,16 @@ impl Number {
             Self::Rat(r) => r,
         }
     }
+}
 
-    pub fn is_zero(self) -> bool {
+impl Zero for Number {
+    fn zero() -> Self {
+        Self::Int(0)
+    }
+
+    fn is_zero(&self) -> bool {
         match self {
-            Self::Int(n) => n == 0,
+            Self::Int(n) => *n == 0,
             Self::Rat(r) => *r.numer() == 0,
         }
     }

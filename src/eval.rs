@@ -4,6 +4,7 @@ use crate::env::*;
 use crate::object::*;
 use crate::parser::Atom;
 use crate::parser::Unit;
+use num::Zero;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

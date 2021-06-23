@@ -58,20 +58,21 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 }
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
-            Unit::Bare(a) => Err(EvalError::InvalidApplication(format!("{:?}", a))),
-            Unit::Paren(v) => {
+            Unit::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
+            Unit::Paren(units) => {
                 // ((lambda (a) a) 0)
-                let f = eval_paren(v.clone(), env)?;
+                let f = eval_paren(units.clone(), env)?;
                 match f {
                     Object::Closure(params, block, closed_env) => {
                         eval_closure(params, block, closed_env, operand.to_vec(), env)
                     }
-                    _ => Err(EvalError::InvalidApplication(format!("{:?}", v))),
+                    _ => Err(EvalError::InvalidApplication(format!("{:?}", units))),
                 }
             }
         }
     }
 }
+
 fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     match operation {
         "+" => add(args, env),
@@ -96,6 +97,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
 }
+
 fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in elements.into_iter() {

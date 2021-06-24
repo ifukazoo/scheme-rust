@@ -384,16 +384,12 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    /*
-    (cond
-        (exp exp)
-        (exp exp)
-        (else exp)
-    )
-    */
+    // (cond (exp exp) (exp exp) (else exp))
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("cond式の引数が0.".to_string()));
     }
+
+    // 何もマッチするものがなければ undef
     let mut result = Object::Undef;
     for arg in args.into_iter() {
         match arg {

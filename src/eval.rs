@@ -246,8 +246,11 @@ fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             Atom::Ident(i) => i,
         },
     };
+
+    // (define a)
     if args.len() == 1 {
         env::set_value(env, var, Object::Undef);
+        // gaucheは aを返す
         Ok(Object::Undef)
     } else if args.len() == 2 {
         let value = args.get(1).unwrap();

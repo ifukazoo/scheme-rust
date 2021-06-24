@@ -221,10 +221,11 @@ fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     env::set_value(env, symbol, value.clone());
     Ok(value)
 }
+
 fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
-            "define required 1 arg.".to_string(),
+            "defineの引数の数が1でない.".to_string(),
         ));
     }
     let var = match args.get(0).unwrap() {

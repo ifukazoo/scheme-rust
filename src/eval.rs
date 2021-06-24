@@ -349,6 +349,8 @@ fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    // (if cond conseq alt )
+    // (if cond conseq)
     if !(args.len() == 2 || args.len() == 3) {
         return Err(EvalError::InvalidSyntax(
             "if式の引数が2 or 3 以外.".to_string(),
@@ -362,17 +364,23 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 let conseq = args.get(1).unwrap();
                 let conseq = eval(conseq.clone(), env)?;
                 Ok(conseq)
-            } else if args.len() == 2 {
-                Ok(Object::Undef)
             } else {
-                let alt = args.get(2).unwrap();
-                let alt = eval(alt.clone(), env)?;
-                Ok(alt)
+                // false
+                if args.len() == 2 {
+                    Ok(Object::Undef)
+                } else {
+                    let alt = args.get(2).unwrap();
+                    let alt = eval(alt.clone(), env)?;
+                    Ok(alt)
+                }
             }
         }
-        _ => Err(EvalError::InvalidSyntax(
-            "if式にbool式以外が指定されている.".to_string(),
-        )),
+        //   cond に bool 式以外の場合は true扱い
+        _ => {
+            let conseq = args.get(1).unwrap();
+            let conseq = eval(conseq.clone(), env)?;
+            Ok(conseq)
+        }
     }
 }
 fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -688,6 +696,7 @@ mod test {
             ("(if #f 1 2)", Object::Num(Int(2))),
             ("(if #f 1)", Object::Undef),
             ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
+            ("(if (lambda ()) 1 2)", Object::Num(Int(1))),
             //
             ("(cond (#f 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(3))),
             ("(cond (#t 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(1))),

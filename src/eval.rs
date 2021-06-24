@@ -313,20 +313,28 @@ fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let left = eval(left.clone(), env)?;
     let right = args.get(1).unwrap();
     let right = eval(right.clone(), env)?;
-    match left {
-        Object::Bool(lb) => match right {
-            Object::Bool(rb) => Ok(Object::Bool(lb == rb)),
-            _ => Ok(Object::Bool(false)),
-        },
-        Object::Nil => match right {
-            Object::Nil => Ok(Object::Bool(true)),
-            _ => Ok(Object::Bool(false)),
-        },
-        Object::Num(ln) => match right {
-            Object::Num(rn) => Ok(Object::Bool(ln == rn)),
-            _ => Ok(Object::Bool(false)),
-        },
-        _ => Ok(Object::Bool(false)),
+
+    // 左辺と右辺の型が同じ場合のみ比較．違う場合はfalse
+    if let Object::Bool(lb) = left {
+        if let Object::Bool(rb) = right {
+            Ok(Object::Bool(lb == rb))
+        } else {
+            Ok(Object::Bool(false))
+        }
+    } else if let Object::Num(ln) = left {
+        if let Object::Num(rn) = right {
+            Ok(Object::Bool(ln == rn))
+        } else {
+            Ok(Object::Bool(false))
+        }
+    } else if let Object::Nil = left {
+        if let Object::Nil = right {
+            Ok(Object::Bool(true))
+        } else {
+            Ok(Object::Bool(false))
+        }
+    } else {
+        Ok(Object::Bool(false))
     }
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {

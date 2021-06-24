@@ -275,8 +275,8 @@ fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("carの引数が1以外".to_string()));
     }
-    let elem = args.get(0).unwrap();
-    let obj = eval(elem.clone(), env)?;
+    let obj = args.get(0).unwrap();
+    let obj = eval(obj.clone(), env)?;
     match obj {
         Object::Pair(f, _) => Ok(*f),
         _ => Err(EvalError::InvalidSyntax(
@@ -288,8 +288,8 @@ fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("cdrの引数が1以外.".to_string()));
     }
-    let elem = args.get(0).unwrap();
-    let obj = eval(elem.clone(), env)?;
+    let obj = args.get(0).unwrap();
+    let obj = eval(obj.clone(), env)?;
     match obj {
         Object::Pair(_, s) => Ok(*s),
         _ => Err(EvalError::InvalidSyntax(

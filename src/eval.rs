@@ -535,7 +535,7 @@ fn fold_cmp(
     let operands = to_num_vec(args, env)?;
     let mut prev = operands[0];
     let mut acc = true;
-    for operand in operands[1..].into_iter() {
+    for operand in operands[1..].iter() {
         acc = cmp(prev, *operand);
         prev = *operand;
     }

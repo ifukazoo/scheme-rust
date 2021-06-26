@@ -486,20 +486,21 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
 }
+
 fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // (lambda () exp)
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
-            "lambda式の形式が間違っている.".to_string(),
+            "lambda式の形式不正. (lambda)".to_string(),
         ));
     }
     let first = args.get(0).unwrap();
     match first {
-        // (lambda a ())
+        // (lambda a)
         Unit::Bare(_) => Err(EvalError::InvalidSyntax(
-            "lambda式のparams部分がかっこ形式でない.".to_string(),
+            "lambda式の形式不正. (lambda a)".to_string(),
         )),
         Unit::Paren(params) => {
+            // (lambda () param param param ..)
             if args.len() > 1 {
                 let exp = args.get(1).unwrap();
                 Ok(Object::Closure(
@@ -508,6 +509,7 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     env.clone(),
                 ))
             } else {
+                // (lambda ())
                 Ok(Object::Closure(params.clone(), None, env.clone()))
             }
         }

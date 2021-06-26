@@ -430,52 +430,59 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(result)
 }
+
 fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // (let () () ())
-    if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax("let式の引数が2以外.".to_string()));
+    // lambda式実行のシンタックスシュガーとsicpに書いてあったので，
+    // labmdaで書き直した．
+    //
+    // (let ( (A a) (B b) (C c) ) exp)
+    // は
+    // ( (lambda (A B C) exp)  a b c) )
+    // と書き換えられる
+
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax(
+            "let式の形式不正. (let)".to_string(),
+        ));
     }
-    let let_env = new_env(HashMap::new());
-    let set_statement = args.get(0).unwrap();
-    let exp = args.get(1).unwrap();
-    match set_statement {
+
+    // 変数にバインドするかっこ式部分
+    let bind_stmt = args.get(0).unwrap();
+    match bind_stmt {
         // (let a ())
         Unit::Bare(_) => Err(EvalError::InvalidSyntax(
-            "let式の定義部分がかっこ形式でない.".to_string(),
+            "let式の形式不正. (let no_paren exp)".to_string(),
         )),
         Unit::Paren(units) => {
+            let mut params = vec![];
+            let mut values = vec![];
             for unit in units {
                 match unit {
-                    // (let (a) ())
                     Unit::Bare(_) => {
                         return Err(EvalError::InvalidSyntax(
-                            "let式の定義部分にかっこ形式でないものがある.".to_string(),
+                            "let式の形式不正. (let (no_paren (b 1)) exp)".to_string(),
                         ))
                     }
                     Unit::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
-                            // (let ((a b c)) ())
                             return Err(EvalError::InvalidSyntax(
-                                "let式の定義部分に要素数が2以外のものがある.".to_string(),
+                                "let式の形式不正. (let ((a param extra) (b param)) exp) "
+                                    .to_string(),
                             ));
                         }
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
-                        if let Unit::Bare(Atom::Ident(key)) = sym {
-                            let value = eval(value.clone(), env)?;
-                            set_value(&let_env, &key, value);
-                        } else {
-                            // (let ((1 0)) ())
-                            return Err(EvalError::InvalidSyntax(
-                                "let式の定義部分にシンボル以外のものが指定された.".to_string(),
-                            ));
-                        }
+                        params.push(sym.clone());
+                        values.push(value.clone());
                     }
                 }
             }
-            add_outer(&let_env, env);
-            let obj = eval(exp.clone(), &let_env)?;
-            Ok(obj)
+            let block = if args.len() == 1 {
+                None
+            } else {
+                Some(args.get(1).unwrap().clone())
+            };
+            eval_closure(params, block, env.clone(), values, env)
         }
     }
 }
@@ -710,6 +717,7 @@ mod test {
             //
             ("(let ((a 1)) (+ a 2))", Object::Num(Int(3))),
             ("(let ((a 1) (b 2)) (+ a b))", Object::Num(Int(3))),
+            ("(let ((1 2)) (+ 3 4))", Object::Num(Int(7))),
             ("(let () (+ 1 2))", Object::Num(Int(3))),
             //
             ("((lambda () 1))", Object::Num(Int(1))),
@@ -729,9 +737,9 @@ mod test {
                 begin
                 (define a 1)
                 (define b 2)
-                ((lambda (c d) (+ a b)) 3 4)
+                ((lambda (c d) (+ a b c d)) 3 4)
                 )",
-                Object::Num(Int(3)),
+                Object::Num(Int(10)),
             ),
             ("((lambda ()))", Object::Num(Int(0))),
             ("((lambda (a b c)) 1 2 3)", Object::Num(Int(0))),
@@ -797,10 +805,6 @@ mod test {
                 "(let ((a 1 2)) (+ 1 2))",
                 EvalError::InvalidSyntax(format!("")),
             ),
-            (
-                "(let ((1 2)) (+ 1 2))",
-                EvalError::InvalidSyntax(format!("")),
-            ),
             ("(lambda)", EvalError::InvalidSyntax(format!(""))),
         ];
 
@@ -809,7 +813,7 @@ mod test {
             let l = lexer::lex(input).unwrap();
             let p = parser::parse_program(l).unwrap();
             match eval(p, &env) {
-                Ok(_) => panic!("expected err. but ok."),
+                Ok(_) => panic!("expected err. but ok. {:?}", input),
                 Err(e) => match expected {
                     EvalError::ZeroDivision | EvalError::NotImplementedSyntax => {
                         assert_eq!(expected, e)

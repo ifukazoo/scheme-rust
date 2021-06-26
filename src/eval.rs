@@ -515,6 +515,7 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
 }
+
 fn eval_closure(
     params: Vec<Unit>,
     block: Option<Unit>,
@@ -530,18 +531,21 @@ fn eval_closure(
         // ( (lambda ()) )
         None => Ok(Object::Num(Number::Int(0))),
         Some(block) => {
-            let call_env = new_env(HashMap::new());
+            // argumentの評価
+            let caller_env = new_env(HashMap::new());
             for (param, arg) in params.into_iter().zip(args.into_iter()) {
                 if let Unit::Bare(Atom::Ident(key)) = param {
                     let arg = eval(arg.clone(), env)?;
-                    set_value(&call_env, &key, arg);
+                    set_value(&caller_env, &key, arg);
                 }
             }
-            add_outer(&call_env, &closed_env);
-            eval(block, &call_env)
+            add_outer(&caller_env, &closed_env);
+            eval(block, &caller_env)
         }
     }
 }
+
+//
 fn fold_cmp(
     args: Vec<Unit>,
     cmp: fn(Number, Number) -> bool,

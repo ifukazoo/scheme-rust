@@ -767,6 +767,15 @@ mod test {
                 )",
                 Object::Num(Int(3)),
             ),
+            (
+                "(
+                begin
+                (define abs)
+                (set! abs (lambda (a) (if (< a 0) (* -1 a) a)))
+                (abs 2)
+                )",
+                Object::Num(Int(2)),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {

@@ -545,7 +545,7 @@ fn eval_closure(
     }
 }
 
-//
+// (< 1 2 3 4) とか
 fn fold_cmp(
     args: Vec<Unit>,
     cmp: fn(Number, Number) -> bool,

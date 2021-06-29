@@ -28,7 +28,7 @@ pub enum Object {
 pub fn cons_pair(lhs: Object, rhs: Object) -> Object {
     Object::Pair(Box::new(lhs), Box::new(rhs))
 }
-// リスト(Nilを終端に持つペアの再起構造)を作成する
+// リスト(Nilを終端に持つペアの再帰構造)を作成する
 pub fn build_list(args: Vec<Object>) -> Object {
     // [1,2,3] => [3,nil] => [2,[3,nil]] => [1,[2,[3,nil]]]
 

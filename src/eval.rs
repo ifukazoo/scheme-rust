@@ -54,7 +54,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             // (myfunc 1 2 3)
             Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
-                Some(Object::Closure(params, block, closed_env)) => {
+                Some(Object::Procedure(params, block, closed_env)) => {
                     eval_closure(params, block, closed_env, operand.to_vec(), env)
                 }
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
@@ -64,7 +64,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // ((lambda (a) a) 0)
                 let f = eval_paren(units.clone(), env)?;
                 match f {
-                    Object::Closure(params, block, closed_env) => {
+                    Object::Procedure(params, block, closed_env) => {
                         eval_closure(params, block, closed_env, operand.to_vec(), env)
                     }
                     _ => Err(EvalError::InvalidApplication(format!("{:?}", units))),
@@ -503,14 +503,14 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             // (lambda () param param param ..)
             if args.len() > 1 {
                 let exp = args.get(1).unwrap();
-                Ok(Object::Closure(
+                Ok(Object::Procedure(
                     params.clone(),
                     Some(exp.clone()),
                     env.clone(),
                 ))
             } else {
                 // (lambda ())
-                Ok(Object::Closure(params.clone(), None, env.clone()))
+                Ok(Object::Procedure(params.clone(), None, env.clone()))
             }
         }
     }

@@ -17,7 +17,7 @@ pub enum Object {
     /// ペア
     Pair(Box<Object>, Box<Object>),
     /// クロージャー
-    Closure(Vec<Unit>, Option<Unit>, RefEnv),
+    Procedure(Vec<Unit>, Option<Unit>, RefEnv),
     /// nil
     Nil,
     /// 未定義．
@@ -51,7 +51,7 @@ impl fmt::Display for Object {
                 let second = second.clone();
                 write!(f, "{}", to_string_pair(*first, *second))
             }
-            Self::Closure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
+            Self::Procedure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
         }
     }
 }

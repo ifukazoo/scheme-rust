@@ -812,7 +812,6 @@ mod test {
             ("(> 1)", EvalError::InvalidSyntax("".to_string())),
             ("(define)", EvalError::InvalidSyntax(format!(""))),
             ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
-            ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
             ("(define 1)", EvalError::InvalidSyntax(format!(""))),
             ("(define + 2)", EvalError::NotImplementedSyntax),
             ("(define a 1 2)", EvalError::InvalidSyntax(format!(""))),

@@ -38,7 +38,7 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
             Some(obj) => Ok(obj),
             None => Err(EvalError::UnboundVariable(i.to_string())),
         },
-        _ => Err(EvalError::NotImplementedSyntax),
+        Atom::App(a) => Ok(Object::Subr(a)),
     }
 }
 fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -57,6 +57,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Some(Object::Procedure(params, block, closed_env)) => {
                     eval_closure(params, block, closed_env, operand.to_vec(), env)
                 }
+                Some(Object::Subr(s)) => apply(s, operand.to_vec(), env),
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
             Unit::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
@@ -67,6 +68,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     Object::Procedure(params, block, closed_env) => {
                         eval_closure(params, block, closed_env, operand.to_vec(), env)
                     }
+                    Object::Subr(s) => apply(s, operand.to_vec(), env),
                     _ => Err(EvalError::InvalidApplication(format!("{:?}", units))),
                 }
             }
@@ -776,6 +778,16 @@ mod test {
                 )",
                 Object::Num(Int(2)),
             ),
+            //
+            ("((if #f + *) 3 4)", Object::Num(Int(12))),
+            (
+                "(
+                begin
+                (define a +)
+                (a 1 2)
+                )",
+                Object::Num(Int(3)),
+            ),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -793,7 +805,6 @@ mod test {
 
         let tests = vec![
             //
-            ("+", EvalError::NotImplementedSyntax),
             ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
             ("(/ 1 0)", EvalError::ZeroDivision),
             ("(/ 0)", EvalError::ZeroDivision),

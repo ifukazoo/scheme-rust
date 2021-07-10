@@ -18,6 +18,8 @@ pub enum Object {
     Pair(Box<Object>, Box<Object>),
     /// クロージャー
     Procedure(Vec<Unit>, Option<Unit>, RefEnv),
+    /// サブルーチン
+    Subr(&'static str),
     /// nil
     Nil,
     /// 未定義．
@@ -52,6 +54,7 @@ impl fmt::Display for Object {
                 write!(f, "{}", to_string_pair(*first, *second))
             }
             Self::Procedure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
+            Self::Subr(s) => write!(f, "#<subr ({} :rest args)>", s),
         }
     }
 }

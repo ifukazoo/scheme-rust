@@ -24,3 +24,19 @@ x ;28
     (+ 3 4) ;3
     ((if #f + *) 3 4) ;12
 ```
+
+### 手続き
+
+```scheme
+    (lambda (x) (+ x x))
+    ((lambda (x) (+ x x)) 4) ;8
+
+    (define reverse-subtract
+        (lambda (x y) (- y x)))
+    (reverse-subtract 7 10) ;3
+
+    (define add4
+        (let ((x 4))
+            (lambda (y) (+ x y))))
+    (add4 6) ;10
+```

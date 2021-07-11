@@ -434,14 +434,6 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 
 fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // lambda式実行のシンタックスシュガーとsicpに書いてあったので，
-    // labmdaで書き直した．
-    //
-    // (let ( (A a) (B b) (C c) ) exp)
-    // は
-    // ( (lambda (A B C) exp)  a b c) )
-    // と書き換えられる
-
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let式の形式不正. (let)".to_string(),
@@ -754,7 +746,19 @@ mod test {
             ("(let ((a 1) (b 2)) (+ a b))", Object::Num(Int(3))),
             ("(let ((1 2)) (+ 3 4))", Object::Num(Int(7))),
             ("(let () (+ 1 2))", Object::Num(Int(3))),
-            //
+            (
+                "(let ((x 2) (y 3))
+                   (* x y))",
+                Object::Num(Int(6)),
+            ),
+            (
+                "
+            (let ((x 2) (y 3))
+              (let ((x 7)
+                    (z (+ x y)))
+                (* z x)))",
+                Object::Num(Int(35)),
+            ),
             ("((lambda () 1))", Object::Num(Int(1))),
             ("((lambda (p) p) 2)", Object::Num(Int(2))),
             ("((lambda (a b) (+ a b)) 1 2)", Object::Num(Int(3))),

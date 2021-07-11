@@ -21,22 +21,51 @@ x ;28
 ### 手続きの呼び出し
 
 ```scheme
-    (+ 3 4) ;3
-    ((if #f + *) 3 4) ;12
+(+ 3 4) ;3
+((if #f + *) 3 4) ;12
 ```
 
 ### 手続き
 
 ```scheme
-    (lambda (x) (+ x x))
-    ((lambda (x) (+ x x)) 4) ;8
+(lambda (x) (+ x x))
+((lambda (x) (+ x x)) 4) ;8
 
-    (define reverse-subtract
-        (lambda (x y) (- y x)))
-    (reverse-subtract 7 10) ;3
+(define reverse-subtract
+    (lambda (x y) (- y x)))
+(reverse-subtract 7 10) ;3
 
-    (define add4
-        (let ((x 4))
-            (lambda (y) (+ x y))))
-    (add4 6) ;10
+(define add4
+    (let ((x 4))
+        (lambda (y) (+ x y))))
+(add4 6) ;10
+```
+
+### 条件式
+
+```scheme
+(if (> 3 2) 1 2) ;1
+(if (> 2 3) 1 2) ;2
+(if (> 3 2)
+    (- 3 2)
+    (+ 3 2)) ;1
+```
+
+### 代入
+
+```scheme
+(define x 2)
+(+ x 1) ;3
+(set! x 4)
+(+ x 1) ;5
+```
+
+### 条件式 cond
+
+```scheme
+(cond ((> 3 2) 2)
+      ((< 3 2) 1)) ;2
+(cond ((> 3 3) 3)
+      ((< 3 3) 2)
+      (else    1)) ;1
 ```

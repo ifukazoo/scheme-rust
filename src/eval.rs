@@ -654,6 +654,15 @@ mod test {
             //
             ("(begin (define a) (set! a 1) a)", Object::Num(Int(1))),
             ("(begin (define a) (set! a (+ 1 2)) a)", Object::Num(Int(3))),
+            (
+                "(begin
+                  (define x 2)
+                  (+ x 1)
+                  (set! x 4)
+                  (+ x 1)
+                  )",
+                Object::Num(Int(5)),
+            ),
             //
             (
                 "(cons 1 2)",
@@ -702,12 +711,19 @@ mod test {
             ("(not #t)", Object::Bool(false)),
             ("(not 1)", Object::Bool(false)),
             ("(not (cons 1 2))", Object::Bool(false)),
-            //
-            ("(if #t 1 2)", Object::Num(Int(1))),
+            // 条件式
+            ("(if (> 3 2) 1 2)", Object::Num(Int(1))),
+            ("(if (> 2 3) 1 2)", Object::Num(Int(2))),
             ("(if #f 1 2)", Object::Num(Int(2))),
             ("(if #f 1)", Object::Undef),
             ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
             ("(if (lambda ()) 1 2)", Object::Num(Int(1))),
+            (
+                "(if (> 3 2)
+                     (- 3 2)
+                     (+ 3 2))",
+                Object::Num(Int(1)),
+            ),
             //
             ("(cond (#f 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(3))),
             ("(cond (#t 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(1))),
@@ -720,6 +736,17 @@ mod test {
             ),
             (
                 "(cond ((+ 1 1) 1) (#f 2) (#t 3) (else 4))",
+                Object::Num(Int(1)),
+            ),
+            (
+                "(cond ((> 3 2) 2)
+                       ((< 3 2) 1))",
+                Object::Num(Int(2)),
+            ),
+            (
+                "(cond ((> 3 3) 3)
+                       ((< 3 3) 2)
+                       (else    1))",
                 Object::Num(Int(1)),
             ),
             //

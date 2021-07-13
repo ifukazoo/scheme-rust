@@ -96,6 +96,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
+        "leta" => leta_exp(args, env),
         "lambda" => lambda(args, env),
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
@@ -480,6 +481,59 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
 }
+fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax(
+            "let*式の形式不正. (let*)".to_string(),
+        ));
+    }
+
+    // 変数にバインドするかっこ式部分
+    let bind_stmt = args.get(0).unwrap();
+    match bind_stmt {
+        // (let* a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "let*式の形式不正. (let* no_paren exp)".to_string(),
+        )),
+        Unit::Paren(units) => {
+            let mut leta_env = env.clone();
+            // 束縛部を順に評価する
+            for unit in units {
+                match unit {
+                    Unit::Bare(_) => {
+                        return Err(EvalError::InvalidSyntax(
+                            "let*式の形式不正. (let* (no_paren (b 1)) exp)".to_string(),
+                        ))
+                    }
+                    Unit::Paren(sym_and_value) => {
+                        if sym_and_value.len() != 2 {
+                            return Err(EvalError::InvalidSyntax(
+                                "let*式の形式不正. (let ((a param extra) (b param)) exp) "
+                                    .to_string(),
+                            ));
+                        }
+                        let sym = sym_and_value.get(0).unwrap();
+                        let value = sym_and_value.get(1).unwrap();
+                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                            let inner = new_env(HashMap::new());
+                            let value = eval(value.clone(), &leta_env)?;
+                            set_value(&inner, key, value);
+                            add_outer(&inner, &leta_env);
+                            leta_env = inner;
+                        }
+                    }
+                }
+            }
+            if args.len() == 1 {
+                // (let* (...) )
+                Ok(Object::Num(Number::Int(0)))
+            } else {
+                let block = args.get(1).unwrap();
+                eval(block.clone(), &leta_env)
+            }
+        }
+    }
+}
 
 fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
@@ -758,6 +812,14 @@ mod test {
                     (z (+ x y)))
                 (* z x)))",
                 Object::Num(Int(35)),
+            ),
+            (
+                "
+            (let ((x 2) (y 3))
+              (let* ((x 7)
+                    (z (+ x y)))
+                (* z x)))",
+                Object::Num(Int(70)),
             ),
             ("((lambda () 1))", Object::Num(Int(1))),
             ("((lambda (p) p) 2)", Object::Num(Int(2))),

@@ -66,7 +66,7 @@ where
 
     while let Some(&c) = input.peek() {
         // set!, eq? などがあるのでこの段階では一緒に取り込んでいる．
-        if c.is_alphanumeric() || c == '!' || c == '?' {
+        if c.is_alphanumeric() || c == '!' || c == '?' || c == '*' {
             s.push(c);
             input.next().unwrap();
         } else {
@@ -89,6 +89,7 @@ where
         "cond" => Token::COND,
         "else" => Token::ELSE,
         "let" => Token::LET,
+        "let*" => Token::LETA,
         "lambda" => Token::LAMBDA,
         _ => Token::VAR(s),
     }

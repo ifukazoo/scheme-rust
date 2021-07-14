@@ -813,6 +813,21 @@ mod test {
                 (* z x)))",
                 Object::Num(Int(35)),
             ),
+            //
+            (
+                "
+            (let ((x 2) (y 3))
+              (let* ((x 7)
+                    (z (+ x y)))
+                (* z x)))",
+                Object::Num(Int(70)),
+            ),
+            (
+                "(let ((mul (lambda (a b) (* a b))))
+                (mul 2 3))",
+                Object::Num(Int(6)),
+            ),
+            //
             (
                 "
             (let ((x 2) (y 3))

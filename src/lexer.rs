@@ -85,11 +85,13 @@ where
         "#f" => Token::FALSE,
         "eq?" => Token::EQUAL,
         "not" => Token::NOT,
+        "zero?" => Token::ISZERO,
         "if" => Token::IF,
         "cond" => Token::COND,
         "else" => Token::ELSE,
         "let" => Token::LET,
         "let*" => Token::LETA,
+        "letrec" => Token::LETREC,
         "lambda" => Token::LAMBDA,
         _ => Token::VAR(s),
     }

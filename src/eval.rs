@@ -97,7 +97,9 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
         "leta" => leta_exp(args, env),
+        "letrec" => letrec_exp(args, env),
         "lambda" => lambda(args, env),
+        "zero" => is_zero(args, env),
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
 }
@@ -534,6 +536,56 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
 }
+fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax(
+            "letrec式の形式不正. (letrec)".to_string(),
+        ));
+    }
+
+    // 変数にバインドするかっこ式部分
+    let bind_stmt = args.get(0).unwrap();
+    match bind_stmt {
+        // (letrec a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "letrec式の形式不正. (letrec no_paren exp)".to_string(),
+        )),
+        Unit::Paren(units) => {
+            let letrec_env = env.clone();
+            // 束縛部を順に評価する
+            for unit in units {
+                match unit {
+                    Unit::Bare(_) => {
+                        return Err(EvalError::InvalidSyntax(
+                            "letrec式の形式不正. (letrec (no_paren (b 1)) exp)".to_string(),
+                        ))
+                    }
+                    Unit::Paren(sym_and_value) => {
+                        if sym_and_value.len() != 2 {
+                            return Err(EvalError::InvalidSyntax(
+                                "letrec式の形式不正. (letrec ((a param extra) (b param)) exp) "
+                                    .to_string(),
+                            ));
+                        }
+                        let sym = sym_and_value.get(0).unwrap();
+                        let value = sym_and_value.get(1).unwrap();
+                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                            let value = eval(value.clone(), &letrec_env)?;
+                            set_value(&letrec_env, key, value);
+                        }
+                    }
+                }
+            }
+            if args.len() == 1 {
+                // (letrec (...) )
+                Ok(Object::Num(Number::Int(0)))
+            } else {
+                let block = args.get(1).unwrap();
+                eval(block.clone(), &letrec_env)
+            }
+        }
+    }
+}
 
 fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
@@ -561,6 +613,20 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(Object::Procedure(params.clone(), None, env.clone()))
             }
         }
+    }
+}
+
+fn is_zero(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::InvalidSyntax("zero? require 1 arg.".to_string()));
+    }
+    let value = args.get(0).unwrap();
+    let value = eval(value.clone(), env)?;
+    match value {
+        Object::Num(n) => Ok(Object::Bool(n.is_zero())),
+        _ => Err(EvalError::InvalidSyntax(
+            "zero? require read number.".to_string(),
+        )),
     }
 }
 
@@ -836,6 +902,21 @@ mod test {
                 (* z x)))",
                 Object::Num(Int(70)),
             ),
+            (
+                "
+            (letrec ((even?
+                       (lambda (n)
+                         (if (zero? n)
+                           #t
+                           (odd? (- n 1)))))
+                     (odd?
+                       (lambda (n)
+                         (if (zero? n)
+                           #f
+                           (even? (- n 1))))))
+                (even? 88))",
+                Object::Bool(true),
+            ),
             ("((lambda () 1))", Object::Num(Int(1))),
             ("((lambda (p) p) 2)", Object::Num(Int(2))),
             ("((lambda (a b) (+ a b)) 1 2)", Object::Num(Int(3))),
@@ -896,6 +977,12 @@ mod test {
                 )",
                 Object::Num(Int(3)),
             ),
+            //
+            ("(zero? 0)", Object::Bool(true)),
+            ("(zero? 1)", Object::Bool(false)),
+            ("(zero? (* 1 0))", Object::Bool(true)),
+            ("(zero? (/ 3 2))", Object::Bool(false)),
+            ("(zero? ((lambda () 0)))", Object::Bool(true)),
         ];
         let env = env::new_env(HashMap::new());
         for (input, expected) in tests.into_iter() {
@@ -939,6 +1026,8 @@ mod test {
                 EvalError::InvalidSyntax(format!("")),
             ),
             ("(lambda)", EvalError::InvalidSyntax(format!(""))),
+            ("(zero? #t)", EvalError::InvalidSyntax(format!(""))),
+            ("(zero? (list 1 2))", EvalError::InvalidSyntax(format!(""))),
         ];
 
         let env = env::new_env(HashMap::new());

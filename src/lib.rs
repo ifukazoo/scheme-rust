@@ -1,7 +1,7 @@
-mod env;
-mod eval;
-mod lexer;
+pub mod env;
+pub mod eval;
+pub mod lexer;
 pub mod object;
-mod parser;
+pub mod parser;
 pub mod repl;
-mod token;
+pub mod token;

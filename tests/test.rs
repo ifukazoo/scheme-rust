@@ -299,6 +299,22 @@ fn test_eval() {
         ("(zero? (* 1 0))", Object::Bool(true)),
         ("(zero? (/ 3 2))", Object::Bool(false)),
         ("(zero? ((lambda () 0)))", Object::Bool(true)),
+        //
+        (
+            "(begin
+            (define add3
+                (lambda (x) (+ x 3)))
+                (add3 3)
+            )",
+            Object::Num(Int(6)),
+        ),
+        (
+            "(begin
+            (define first car)
+            (first (list 1 2))
+            )",
+            Object::Num(Int(1)),
+        ),
     ];
     let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {

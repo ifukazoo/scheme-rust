@@ -108,3 +108,17 @@ x ;28
     (+ x 1))
     ; #6
 ```
+
+## プログラム構造
+
+### 定義
+
+```scheme
+(define add3
+    (lambda (x) (+ x 3)))
+(add3 3)
+;6
+(define first car)
+(first (list 1 2))
+;1
+```

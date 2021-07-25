@@ -84,7 +84,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "/" => div(args, env),
         "<" => lt(args, env),
         ">" => gt(args, env),
-        "begin" => begin(args, env),
+        "begin" => eval_multi(args, env),
         "define" => define(args, env),
         "set" => set(args, env),
         "cons" => cons(args, env),
@@ -184,7 +184,7 @@ fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
-fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for a in args.into_iter() {
         result = eval(a, env)?;

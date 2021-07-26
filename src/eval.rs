@@ -452,8 +452,6 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "let式の形式不正. (let no_paren exp)".to_string(),
         )),
         Unit::Paren(units) => {
-            // 環境を複製して式に閉じた内部の環境として使用する．
-            let let_env = env.clone();
             let mut params = vec![];
             let mut values = vec![];
             for unit in units {
@@ -477,12 +475,14 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     }
                 }
             }
+            // (let (bind_stmt) (...) (...) (...))
+            //       0           1     2     3
             let block = if args.len() == 1 {
                 None
             } else {
-                Some(args[1..].to_vec().clone())
+                Some(args[1..].to_vec())
             };
-            eval_closure(params, block, let_env, values, env)
+            eval_closure(params, block, env.clone(), values, env)
         }
     }
 }
@@ -596,6 +596,10 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式の形式不正. (lambda)".to_string(),
         ));
     }
+
+    // (lambda (a b) (...) (...))
+    //          0     1     2
+
     let first = args.get(0).unwrap();
     match first {
         // (lambda a)
@@ -603,18 +607,12 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式の形式不正. (lambda a)".to_string(),
         )),
         Unit::Paren(params) => {
-            // (lambda (param param param ..) )
-            if args.len() > 1 {
-                let block = &args[1..].to_vec();
-                Ok(Object::Procedure(
-                    params.clone(),
-                    Some(block.clone()),
-                    env.clone(),
-                ))
-            } else {
-                // TODO if else を入れ替えたい
-                // (lambda ())
+            if args.len() == 1 {
+                // (lambda (a b) )
                 Ok(Object::Procedure(params.clone(), None, env.clone()))
+            } else {
+                let block = args[1..].to_vec();
+                Ok(Object::Procedure(params.clone(), Some(block), env.clone()))
             }
         }
     }

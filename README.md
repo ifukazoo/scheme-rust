@@ -78,12 +78,12 @@ x ;28
     ;6
 (let ((x 2) (y 3))
     (let ((x 7)
-        (z (+ x y)))
-    (* z x)))
+          (z (+ x y)))
+      (* z x)))
     ;35
 (let* ((x 2) (y 3))
     (let ((x 7)
-        (z (+ x y)))
+          (z (+ x y)))
     (* z x)))
     ;70
 (letrec ((even?
@@ -121,4 +121,16 @@ x ;28
 (define first car)
 (first (list 1 2))
 ;1
+
+(let ((x 5))
+    (define foo (lambda (y) (bar x y)))
+    (define bar (lambda (a b) (+ (* a b) a)))
+    (foo (+ x 3)))
+;45
+
+(let ((x 5))
+    (letrec ((foo (lambda (y) (bar x y)))
+             (bar (lambda (a b) (+ (* a b) a))))
+        (foo (+ x 3))))
+;45
 ```

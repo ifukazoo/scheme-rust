@@ -533,8 +533,8 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // (let* (...) )
                 Ok(Object::Num(Number::Int(0)))
             } else {
-                let block = &args[1..].to_vec();
-                eval_multi(block.clone(), &leta_env)
+                let block = args[1..].to_vec();
+                eval_multi(block, &leta_env)
             }
         }
     }
@@ -583,8 +583,8 @@ fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // (letrec (...) )
                 Ok(Object::Num(Number::Int(0)))
             } else {
-                let block = &args[1..].to_vec();
-                eval_multi(block.clone(), &letrec_env)
+                let block = args[1..].to_vec();
+                eval_multi(block, &letrec_env)
             }
         }
     }

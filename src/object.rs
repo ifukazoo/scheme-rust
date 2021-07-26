@@ -16,8 +16,8 @@ pub enum Object {
     Num(Number),
     /// ペア
     Pair(Box<Object>, Box<Object>),
-    /// クロージャー
-    Procedure(Vec<Unit>, Option<Unit>, RefEnv),
+    /// クロージャー. param, block, env
+    Procedure(Vec<Unit>, Option<Vec<Unit>>, RefEnv),
     /// サブルーチン
     Subr(&'static str),
     /// nil

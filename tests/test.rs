@@ -315,6 +315,56 @@ fn test_eval() {
             )",
             Object::Num(Int(1)),
         ),
+        //
+        (
+            "((lambda ()
+            (+ 1 2)
+            (+ 3 4)))",
+            Object::Num(Int(7)),
+        ),
+        (
+            "((lambda ()
+            (define first car)
+            (first (list 1 2))
+            ))",
+            Object::Num(Int(1)),
+        ),
+        (
+            "
+        (let ((x 5))
+                (define foo (lambda (y) (bar x y)))
+                (define bar (lambda (a b) (+ (* a b) a)))
+            (foo (+ x 3)))
+        ",
+            Object::Num(Int(45)),
+        ),
+        (
+            "
+        (let* ((x 5))
+                (define foo (lambda (y) (bar x y)))
+                (define bar (lambda (a b) (+ (* a b) a)))
+            (foo (+ x 3)))
+        ",
+            Object::Num(Int(45)),
+        ),
+        (
+            "
+        (letrec ((x 5))
+                (define foo (lambda (y) (bar x y)))
+                (define bar (lambda (a b) (+ (* a b) a)))
+            (foo (+ x 3)))
+        ",
+            Object::Num(Int(45)),
+        ),
+        (
+            "
+        (let ((x 5))
+            (letrec ((foo (lambda (y) (bar x y)))
+                     (bar (lambda (a b) (+ (* a b) a))))
+            (foo (+ x 3))))
+        ",
+            Object::Num(Int(45)),
+        ),
     ];
     let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {

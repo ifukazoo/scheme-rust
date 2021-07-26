@@ -184,6 +184,7 @@ fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
+// 複文の評価
 fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for a in args.into_iter() {
@@ -451,6 +452,8 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "let式の形式不正. (let no_paren exp)".to_string(),
         )),
         Unit::Paren(units) => {
+            // 環境を複製して式に閉じた内部の環境として使用する．
+            let let_env = env.clone();
             let mut params = vec![];
             let mut values = vec![];
             for unit in units {
@@ -477,9 +480,9 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             let block = if args.len() == 1 {
                 None
             } else {
-                Some(args.get(1).unwrap().clone())
+                Some(args[1..].to_vec().clone())
             };
-            eval_closure(params, block, env.clone(), values, env)
+            eval_closure(params, block, let_env, values, env)
         }
     }
 }
@@ -530,8 +533,8 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // (let* (...) )
                 Ok(Object::Num(Number::Int(0)))
             } else {
-                let block = args.get(1).unwrap();
-                eval(block.clone(), &leta_env)
+                let block = &args[1..].to_vec();
+                eval_multi(block.clone(), &leta_env)
             }
         }
     }
@@ -580,8 +583,8 @@ fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // (letrec (...) )
                 Ok(Object::Num(Number::Int(0)))
             } else {
-                let block = args.get(1).unwrap();
-                eval(block.clone(), &letrec_env)
+                let block = &args[1..].to_vec();
+                eval_multi(block.clone(), &letrec_env)
             }
         }
     }
@@ -600,15 +603,16 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式の形式不正. (lambda a)".to_string(),
         )),
         Unit::Paren(params) => {
-            // (lambda () param param param ..)
+            // (lambda (param param param ..) )
             if args.len() > 1 {
-                let exp = args.get(1).unwrap();
+                let block = &args[1..].to_vec();
                 Ok(Object::Procedure(
                     params.clone(),
-                    Some(exp.clone()),
+                    Some(block.clone()),
                     env.clone(),
                 ))
             } else {
+                // TODO if else を入れ替えたい
                 // (lambda ())
                 Ok(Object::Procedure(params.clone(), None, env.clone()))
             }
@@ -632,7 +636,7 @@ fn is_zero(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 
 fn eval_closure(
     params: Vec<Unit>,
-    block: Option<Unit>,
+    block: Option<Vec<Unit>>,
     closed_env: RefEnv,
     args: Vec<Unit>,
     env: &RefEnv,
@@ -654,7 +658,7 @@ fn eval_closure(
                 }
             }
             add_outer(&caller_env, &closed_env);
-            eval(block, &caller_env)
+            eval_multi(block, &caller_env)
         }
     }
 }

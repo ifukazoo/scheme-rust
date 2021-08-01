@@ -321,27 +321,7 @@ fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let right = eval(right.clone(), env)?;
 
     // 左辺と右辺の型が同じ場合のみ比較．違う場合はfalse
-    if let Object::Bool(lb) = left {
-        if let Object::Bool(rb) = right {
-            Ok(Object::Bool(lb == rb))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else if let Object::Num(ln) = left {
-        if let Object::Num(rn) = right {
-            Ok(Object::Bool(ln == rn))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else if let Object::Nil = left {
-        if let Object::Nil = right {
-            Ok(Object::Bool(true))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else {
-        Ok(Object::Bool(false))
-    }
+    Ok(Object::Bool(left == right))
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {

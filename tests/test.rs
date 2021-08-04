@@ -137,7 +137,7 @@ fn test_eval() {
         ("(if (> 2 3) 1 2)", Object::Num(Int(2))),
         ("(if #f 1 2)", Object::Num(Int(2))),
         ("(if #f 1)", Object::Undef),
-        ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
+        ("(if (eqv? 1 1) #f #t)", Object::Bool(false)),
         ("(if (lambda ()) 1 2)", Object::Num(Int(1))),
         (
             "(if (> 3 2)
@@ -359,11 +359,11 @@ fn test_eval() {
             Object::Num(Int(45)),
         ),
         // 標準手続き
-        ("(eq? 2 2)", Object::Bool(true)),
-        ("(eq? (list) (list))", Object::Bool(true)),
-        ("(eq? car car)", Object::Bool(true)),
-        ("(eq? (lambda (x) x) (lambda (x) x))", Object::Bool(true)),
-        ("(let ((p (lambda (x) x)))(eq? p p))", Object::Bool(true)),
+        ("(eqv? 2 2)", Object::Bool(true)),
+        // ("(eq? (list) (list))", Object::Bool(true)),
+        // ("(eq? car car)", Object::Bool(true)),
+        // ("(eq? (lambda (x) x) (lambda (x) x))", Object::Bool(true)),
+        // ("(let ((p (lambda (x) x)))(eq? p p))", Object::Bool(true)),
         // ("(eq? 0 0)", Object::Bool(true)),
         // ("(eq? 0 1)", Object::Bool(false)),
         // ("(eq? #t #t)", Object::Bool(true)),

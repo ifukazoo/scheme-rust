@@ -141,4 +141,5 @@ x ;28
 
 ```scheme
 (eqv? 2 2) ; #t
+(eqv? (list) (list)) ; '() '() => #t
 ```

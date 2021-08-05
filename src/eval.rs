@@ -91,7 +91,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "car" => car(args, env),
         "cdr" => cdr(args, env),
         "list" => list(args, env),
-        "eq" => eq(args, env),
+        "eqv" => eqv(args, env),
         "not" => not(args, env),
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
@@ -311,7 +311,7 @@ fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
-fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eqv(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax("eq?の引数が2以外.".to_string()));
     }

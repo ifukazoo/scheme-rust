@@ -83,7 +83,7 @@ where
         "list" => Token::LIST,
         "#t" => Token::TRUE,
         "#f" => Token::FALSE,
-        "eqv?" => Token::EQUAL,
+        "eqv?" => Token::EQV,
         "not" => Token::NOT,
         "zero?" => Token::ISZERO,
         "if" => Token::IF,

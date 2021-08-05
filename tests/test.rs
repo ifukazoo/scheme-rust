@@ -361,6 +361,7 @@ fn test_eval() {
         // 標準手続き
         ("(eqv? 2 2)", Object::Bool(true)),
         ("(eqv? (list) (list))", Object::Bool(true)),
+        // ("(eqv? (cons 1 2) (cons 1 2))", Object::Bool(false)),
         // ("(eq? car car)", Object::Bool(true)),
         // ("(eq? (lambda (x) x) (lambda (x) x))", Object::Bool(true)),
         // ("(let ((p (lambda (x) x)))(eq? p p))", Object::Bool(true)),

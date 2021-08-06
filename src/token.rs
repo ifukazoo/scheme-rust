@@ -19,7 +19,7 @@ pub enum Token {
     LIST,
     TRUE,
     FALSE,
-    EQV,
+    EQUAL,
     NOT,
     ISZERO,
     IF,

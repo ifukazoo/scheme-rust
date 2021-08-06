@@ -106,7 +106,7 @@ where
         Token::CAR => Ok(Atom::App("car")),
         Token::CDR => Ok(Atom::App("cdr")),
         Token::LIST => Ok(Atom::App("list")),
-        Token::EQV => Ok(Atom::App("eqv")),
+        Token::EQUAL => Ok(Atom::App("equal")),
         Token::NOT => Ok(Atom::App("not")),
         Token::ISZERO => Ok(Atom::App("zero")),
         Token::IF => Ok(Atom::App("if")),

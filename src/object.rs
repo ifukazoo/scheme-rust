@@ -93,11 +93,7 @@ impl PartialEq for Object {
                 _ => false,
             },
             Pair(lf, ls) => match rhs {
-                Pair(rf, rs) => {
-                    let b1 = lf == rf;
-                    let b2 = ls == rs;
-                    b1 && b2
-                }
+                Pair(rf, rs) => lf == rf && ls == rs,
                 _ => false,
             },
         }

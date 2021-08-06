@@ -140,6 +140,11 @@ x ;28
 #### 等価性述語
 
 ```scheme
-(eqv? 2 2) ; #t
-(eqv? (list) (list)) ; '() '() => #t
+(equal? 2 2) ; #t
+(equal? (list) (list)) ; '() '() => #t
+(equal? (cons 1 2) (cons 1 2)) ; => #t
+(equal? #f (list)) ; => #f
+(let ((p (lambda (x) x)))
+    (equal? p p)); => #t
+(equal? car car) ; => #t
 ```

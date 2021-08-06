@@ -91,7 +91,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "car" => car(args, env),
         "cdr" => cdr(args, env),
         "list" => list(args, env),
-        "eqv" => eqv(args, env),
+        "equal" => equal(args, env),
         "not" => not(args, env),
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
@@ -311,9 +311,9 @@ fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
-fn eqv(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn equal(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax("eq?の引数が2以外.".to_string()));
+        return Err(EvalError::InvalidSyntax("equal?の引数が2以外.".to_string()));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -321,6 +321,7 @@ fn eqv(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let right = eval(right.clone(), env)?;
 
     // 左辺と右辺の型が同じ場合のみ比較．違う場合はfalse
+    // schemeのequal?とObjectのPartialEqが等しくなるように実装している．
     Ok(Object::Bool(left == right))
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {

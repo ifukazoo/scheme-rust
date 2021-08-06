@@ -137,7 +137,7 @@ fn test_eval() {
         ("(if (> 2 3) 1 2)", Object::Num(Int(2))),
         ("(if #f 1 2)", Object::Num(Int(2))),
         ("(if #f 1)", Object::Undef),
-        ("(if (eqv? 1 1) #f #t)", Object::Bool(false)),
+        ("(if (equal? 1 1) #f #t)", Object::Bool(false)),
         ("(if (lambda ()) 1 2)", Object::Num(Int(1))),
         (
             "(if (> 3 2)
@@ -161,7 +161,7 @@ fn test_eval() {
         ),
         (
             "(cond ((> 3 2) 2)
-                       ((< 3 2) 1))",
+                           ((< 3 2) 1))",
             Object::Num(Int(2)),
         ),
         (
@@ -177,7 +177,7 @@ fn test_eval() {
         ("(let () (+ 1 2))", Object::Num(Int(3))),
         (
             "(let ((x 2) (y 3))
-                   (* x y))",
+                       (* x y))",
             Object::Num(Int(6)),
         ),
         (
@@ -199,7 +199,7 @@ fn test_eval() {
         ),
         (
             "(let ((mul (lambda (a b) (* a b))))
-                (mul 2 3))",
+                    (mul 2 3))",
             Object::Num(Int(6)),
         ),
         //
@@ -358,19 +358,17 @@ fn test_eval() {
         ",
             Object::Num(Int(45)),
         ),
-        // 標準手続き
-        ("(eqv? 2 2)", Object::Bool(true)),
-        ("(eqv? (list) (list))", Object::Bool(true)),
-        // ("(eqv? (cons 1 2) (cons 1 2))", Object::Bool(false)),
-        // ("(eq? car car)", Object::Bool(true)),
-        // ("(eq? (lambda (x) x) (lambda (x) x))", Object::Bool(true)),
-        // ("(let ((p (lambda (x) x)))(eq? p p))", Object::Bool(true)),
-        // ("(eq? 0 0)", Object::Bool(true)),
-        // ("(eq? 0 1)", Object::Bool(false)),
-        // ("(eq? #t #t)", Object::Bool(true)),
-        // ("(eq? #t #f)", Object::Bool(false)),
-        // ("(eq? #t 0)", Object::Bool(false)),
-        // ("(eq? (cons 0 0) (cons 0 0))", Object::Bool(false)),
+        // 等価性述語
+        ("(equal? 2 2)", Object::Bool(true)),
+        ("(equal? (list) (list))", Object::Bool(true)),
+        ("(equal? (cons 1 2) (cons 1 2))", Object::Bool(true)),
+        ("(equal? #f (list))", Object::Bool(false)),
+        (
+            "(let ((p (lambda (x) x)))
+                (equal? p p))",
+            Object::Bool(true),
+        ),
+        ("(equal? car car)", Object::Bool(true)),
     ];
     let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {

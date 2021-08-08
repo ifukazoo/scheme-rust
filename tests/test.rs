@@ -161,7 +161,7 @@ fn test_eval() {
         ),
         (
             "(cond ((> 3 2) 2)
-                           ((< 3 2) 1))",
+                               ((< 3 2) 1))",
             Object::Num(Int(2)),
         ),
         (
@@ -177,7 +177,7 @@ fn test_eval() {
         ("(let () (+ 1 2))", Object::Num(Int(3))),
         (
             "(let ((x 2) (y 3))
-                       (* x y))",
+                           (* x y))",
             Object::Num(Int(6)),
         ),
         (
@@ -199,7 +199,7 @@ fn test_eval() {
         ),
         (
             "(let ((mul (lambda (a b) (* a b))))
-                    (mul 2 3))",
+                        (mul 2 3))",
             Object::Num(Int(6)),
         ),
         //
@@ -365,10 +365,27 @@ fn test_eval() {
         ("(equal? #f (list))", Object::Bool(false)),
         (
             "(let ((p (lambda (x) x)))
-                (equal? p p))",
+                    (equal? p p))",
             Object::Bool(true),
         ),
         ("(equal? car car)", Object::Bool(true)),
+        // 数
+        ("(+ 3 4)", Object::Num(Int(7))),
+        ("(+ 3)", Object::Num(Int(3))),
+        ("(+)", Object::Num(Int(0))),
+        ("(* 4)", Object::Num(Int(4))),
+        ("(*)", Object::Num(Int(1))),
+        ("(- 3 4)", Object::Num(Int(-1))),
+        ("(- 3 4 5)", Object::Num(Int(-6))),
+        ("(- 3)", Object::Num(Int(-3))),
+        ("(/ 3 4 5)", Object::Num(Rat(Ratio::new(3, 20)))),
+        ("(/ 3)", Object::Num(Rat(Ratio::new(1, 3)))),
+        // ブーリアン
+        ("(not #t)       ", Object::Bool(false)),
+        ("(not 3)        ", Object::Bool(false)),
+        ("(not (list 3)) ", Object::Bool(false)),
+        ("(not #f)       ", Object::Bool(true)),
+        ("(not (list))   ", Object::Bool(false)),
     ];
     let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {

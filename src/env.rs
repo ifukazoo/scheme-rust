@@ -7,7 +7,7 @@ use std::rc::Rc;
 pub type RefEnv = Rc<RefCell<Environment>>;
 
 /// 環境のマップ
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Environment {
     map: HashMap<String, Object>,
     outer: Option<RefEnv>,
@@ -37,6 +37,34 @@ pub fn get_value(env: &RefEnv, key: &str) -> Option<Object> {
 /// この環境の外側に一階層環境を追加する.
 pub fn add_outer(inner: &RefEnv, outer_env: &RefEnv) {
     inner.borrow_mut().outer = Some(outer_env.clone());
+}
+
+/// 2つの環境が同じものであるか
+pub fn equals(lhs: &RefEnv, rhs: &RefEnv) -> bool {
+    let lenv = lhs.borrow();
+    let renv = rhs.borrow();
+
+    // outerの一致
+    let eq_outer = if let Some(lo) = &lenv.outer {
+        if let Some(ro) = &renv.outer {
+            equals(lo, ro)
+        } else {
+            false
+        }
+    } else {
+        // None
+        if let None = &renv.outer {
+            true
+        } else {
+            false
+        }
+    };
+
+    if !eq_outer {
+        false
+    } else {
+        std::ptr::eq(&lenv.map, &renv.map)
+    }
 }
 #[cfg(test)]
 mod test {
@@ -68,5 +96,20 @@ mod test {
         let local = new_env(n);
         add_outer(&local, &global);
         assert_eq!(get_value(&local, "TRUE").unwrap(), Object::Bool(true));
+    }
+
+    #[test]
+    fn test_equals() {
+        let e = new_env(HashMap::new());
+        set_value(&e, "key1", Object::Bool(true));
+        let e2 = e.clone();
+        assert_eq!(true, equals(&e, &e2));
+
+        set_value(&e, "key2", Object::Bool(false));
+        assert_eq!(true, equals(&e, &e2));
+
+        let f = new_env(HashMap::new());
+        add_outer(&f, &e);
+        assert_eq!(false, equals(&e, &f));
     }
 }

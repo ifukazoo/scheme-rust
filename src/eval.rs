@@ -38,7 +38,7 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
             Some(obj) => Ok(obj),
             None => Err(EvalError::UnboundVariable(i.to_string())),
         },
-        _ => Err(EvalError::NotImplementedSyntax),
+        Atom::App(a) => Ok(Object::Subr(a)),
     }
 }
 fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -57,6 +57,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Some(Object::Procedure(params, block, closed_env)) => {
                     eval_closure(params, block, closed_env, operand.to_vec(), env)
                 }
+                Some(Object::Subr(s)) => apply(s, operand.to_vec(), env),
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
             Unit::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
@@ -67,6 +68,7 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     Object::Procedure(params, block, closed_env) => {
                         eval_closure(params, block, closed_env, operand.to_vec(), env)
                     }
+                    Object::Subr(s) => apply(s, operand.to_vec(), env),
                     _ => Err(EvalError::InvalidApplication(format!("{:?}", units))),
                 }
             }
@@ -82,19 +84,22 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "/" => div(args, env),
         "<" => lt(args, env),
         ">" => gt(args, env),
-        "begin" => begin(args, env),
+        "begin" => eval_multi(args, env),
         "define" => define(args, env),
         "set" => set(args, env),
         "cons" => cons(args, env),
         "car" => car(args, env),
         "cdr" => cdr(args, env),
         "list" => list(args, env),
-        "eq" => eq(args, env),
+        "equal" => equal(args, env),
         "not" => not(args, env),
         "if" => if_exp(args, env),
         "cond" => cond(args, env),
         "let" => let_exp(args, env),
+        "leta" => leta_exp(args, env),
+        "letrec" => letrec_exp(args, env),
         "lambda" => lambda(args, env),
+        "zero" => is_zero(args, env),
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
 }
@@ -179,7 +184,8 @@ fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
-fn begin(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+// 複文の評価
+fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for a in args.into_iter() {
         result = eval(a, env)?;
@@ -305,9 +311,9 @@ fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
-fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn equal(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::InvalidSyntax("eq?の引数が2以外.".to_string()));
+        return Err(EvalError::InvalidSyntax("equal?の引数が2以外.".to_string()));
     }
     let left = args.get(0).unwrap();
     let left = eval(left.clone(), env)?;
@@ -315,27 +321,8 @@ fn eq(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let right = eval(right.clone(), env)?;
 
     // 左辺と右辺の型が同じ場合のみ比較．違う場合はfalse
-    if let Object::Bool(lb) = left {
-        if let Object::Bool(rb) = right {
-            Ok(Object::Bool(lb == rb))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else if let Object::Num(ln) = left {
-        if let Object::Num(rn) = right {
-            Ok(Object::Bool(ln == rn))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else if let Object::Nil = left {
-        if let Object::Nil = right {
-            Ok(Object::Bool(true))
-        } else {
-            Ok(Object::Bool(false))
-        }
-    } else {
-        Ok(Object::Bool(false))
-    }
+    // schemeのequal?とObjectのPartialEqが等しくなるように実装している．
+    Ok(Object::Bool(left == right))
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
@@ -432,14 +419,6 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 }
 
 fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // lambda式実行のシンタックスシュガーとsicpに書いてあったので，
-    // labmdaで書き直した．
-    //
-    // (let ( (A a) (B b) (C c) ) exp)
-    // は
-    // ( (lambda (A B C) exp)  a b c) )
-    // と書き換えられる
-
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let式の形式不正. (let)".to_string(),
@@ -477,12 +456,117 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     }
                 }
             }
+            // (let (bind_stmt) (...) (...) (...))
+            //       0           1     2     3
             let block = if args.len() == 1 {
                 None
             } else {
-                Some(args.get(1).unwrap().clone())
+                Some(args[1..].to_vec())
             };
             eval_closure(params, block, env.clone(), values, env)
+        }
+    }
+}
+fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax(
+            "let*式の形式不正. (let*)".to_string(),
+        ));
+    }
+
+    // 変数にバインドするかっこ式部分
+    let bind_stmt = args.get(0).unwrap();
+    match bind_stmt {
+        // (let* a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "let*式の形式不正. (let* no_paren exp)".to_string(),
+        )),
+        Unit::Paren(units) => {
+            let mut leta_env = env.clone();
+            // 束縛部を順に評価する
+            for unit in units {
+                match unit {
+                    Unit::Bare(_) => {
+                        return Err(EvalError::InvalidSyntax(
+                            "let*式の形式不正. (let* (no_paren (b 1)) exp)".to_string(),
+                        ))
+                    }
+                    Unit::Paren(sym_and_value) => {
+                        if sym_and_value.len() != 2 {
+                            return Err(EvalError::InvalidSyntax(
+                                "let*式の形式不正. (let ((a param extra) (b param)) exp) "
+                                    .to_string(),
+                            ));
+                        }
+                        let sym = sym_and_value.get(0).unwrap();
+                        let value = sym_and_value.get(1).unwrap();
+                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                            let inner = new_env(HashMap::new());
+                            let value = eval(value.clone(), &leta_env)?;
+                            set_value(&inner, key, value);
+                            add_outer(&inner, &leta_env);
+                            leta_env = inner;
+                        }
+                    }
+                }
+            }
+            if args.len() == 1 {
+                // (let* (...) )
+                Ok(Object::Num(Number::Int(0)))
+            } else {
+                let block = args[1..].to_vec();
+                eval_multi(block, &leta_env)
+            }
+        }
+    }
+}
+fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::InvalidSyntax(
+            "letrec式の形式不正. (letrec)".to_string(),
+        ));
+    }
+
+    // 変数にバインドするかっこ式部分
+    let bind_stmt = args.get(0).unwrap();
+    match bind_stmt {
+        // (letrec a ())
+        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+            "letrec式の形式不正. (letrec no_paren exp)".to_string(),
+        )),
+        Unit::Paren(units) => {
+            let letrec_env = env.clone();
+            // 束縛部を順に評価する
+            for unit in units {
+                match unit {
+                    Unit::Bare(_) => {
+                        return Err(EvalError::InvalidSyntax(
+                            "letrec式の形式不正. (letrec (no_paren (b 1)) exp)".to_string(),
+                        ))
+                    }
+                    Unit::Paren(sym_and_value) => {
+                        if sym_and_value.len() != 2 {
+                            return Err(EvalError::InvalidSyntax(
+                                "letrec式の形式不正. (letrec ((a param extra) (b param)) exp) "
+                                    .to_string(),
+                            ));
+                        }
+                        let sym = sym_and_value.get(0).unwrap();
+                        let value = sym_and_value.get(1).unwrap();
+                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                            let value = eval(value.clone(), &letrec_env)?;
+                            set_value(&letrec_env, key, value);
+                        }
+                    }
+                }
+            }
+            if args.len() == 1 {
+                // (letrec (...) )
+                Ok(Object::Num(Number::Int(0)))
+            } else {
+                let block = args[1..].to_vec();
+                eval_multi(block, &letrec_env)
+            }
         }
     }
 }
@@ -493,6 +577,10 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式の形式不正. (lambda)".to_string(),
         ));
     }
+
+    // (lambda (a b) (...) (...))
+    //          0     1     2
+
     let first = args.get(0).unwrap();
     match first {
         // (lambda a)
@@ -500,25 +588,34 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             "lambda式の形式不正. (lambda a)".to_string(),
         )),
         Unit::Paren(params) => {
-            // (lambda () param param param ..)
-            if args.len() > 1 {
-                let exp = args.get(1).unwrap();
-                Ok(Object::Procedure(
-                    params.clone(),
-                    Some(exp.clone()),
-                    env.clone(),
-                ))
-            } else {
-                // (lambda ())
+            if args.len() == 1 {
+                // (lambda (a b) )
                 Ok(Object::Procedure(params.clone(), None, env.clone()))
+            } else {
+                let block = args[1..].to_vec();
+                Ok(Object::Procedure(params.clone(), Some(block), env.clone()))
             }
         }
     }
 }
 
+fn is_zero(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::InvalidSyntax("zero? require 1 arg.".to_string()));
+    }
+    let value = args.get(0).unwrap();
+    let value = eval(value.clone(), env)?;
+    match value {
+        Object::Num(n) => Ok(Object::Bool(n.is_zero())),
+        _ => Err(EvalError::InvalidSyntax(
+            "zero? require read number.".to_string(),
+        )),
+    }
+}
+
 fn eval_closure(
     params: Vec<Unit>,
-    block: Option<Unit>,
+    block: Option<Vec<Unit>>,
     closed_env: RefEnv,
     args: Vec<Unit>,
     env: &RefEnv,
@@ -540,7 +637,7 @@ fn eval_closure(
                 }
             }
             add_outer(&caller_env, &closed_env);
-            eval(block, &caller_env)
+            eval_multi(block, &caller_env)
         }
     }
 }
@@ -565,300 +662,4 @@ fn fold_cmp(
         prev = *operand;
     }
     Ok(Object::Bool(acc))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::env;
-    use crate::lexer;
-    use crate::object;
-    use crate::parser;
-
-    #[test]
-    fn test_eval() {
-        use num::rational::Ratio;
-        use object::cons_pair;
-        use object::Number::Int;
-        use object::Number::Rat;
-        use object::Object;
-        use std::collections::HashMap;
-
-        let tests = vec![
-            //
-            ("1", Object::Num(Int(1))),
-            ("()", Object::Nil),
-            ("(+ 1 2 )", Object::Num(Int(3))),
-            ("(+ 1 2 3 4 5 6 7 8 9 10)", Object::Num(Int(55))),
-            ("(+ 1)", Object::Num(Int(1))),
-            ("(+)", Object::Num(Int(0))),
-            //
-            ("-1", Object::Num(Int(-1))),
-            ("(+ +1 2)", Object::Num(Int(3))),
-            ("(+ 0 -1)", Object::Num(Int(-1))),
-            ("(+ +1 +2 +3 +4 +5 +6 +7 +8 +9 +10)", Object::Num(Int(55))),
-            ("(+ -1 -2 -3 -4 -5 -6 -7 -8 -9 -10)", Object::Num(Int(-55))),
-            //
-            ("(- 1)", Object::Num(Int(-1))),
-            ("(- 0 1 )", Object::Num(Int(-1))),
-            ("(- 1 2)", Object::Num(Int(-1))),
-            ("(- 1 2 3 4 5 6 7 8 9 10)", Object::Num(Int(-53))),
-            ("(- +2 +2 +2)", Object::Num(Int(-2))),
-            //
-            ("(+ (+ 1 2) 3)", Object::Num(Int(6))),
-            ("(- (+ (+ 1 2) 3) 5)", Object::Num(Int(1))),
-            //
-            ("(*)", Object::Num(Int(1))),
-            ("(* 1)", Object::Num(Int(1))),
-            ("(* 0 1 )", Object::Num(Int(0))),
-            ("(* 1 2)", Object::Num(Int(2))),
-            ("(* 2 2)", Object::Num(Int(4))),
-            ("(* 2 -2)", Object::Num(Int(-4))),
-            ("(* -2 2)", Object::Num(Int(-4))),
-            ("(* -2 -2)", Object::Num(Int(4))),
-            ("(* 2 3 4)", Object::Num(Int(24))),
-            ("(+ (* 2 3) 5)", Object::Num(Int(11))),
-            //
-            ("(/ 1 2 )", Object::Num(Rat(Ratio::new(1, 2)))),
-            ("(/ 4 2)", Object::Num(Int(2))),
-            ("(/ 1)", Object::Num(Int(1))),
-            ("(/ 2)", Object::Num(Rat(Ratio::new(1, 2)))),
-            ("(/ 1 2 3 4 5)", Object::Num(Rat(Ratio::new(1, 120)))),
-            //
-            ("(< 1 2 )", Object::Bool(true)),
-            ("(< 2 1 )", Object::Bool(false)),
-            ("(< 1 1 )", Object::Bool(false)),
-            ("(< 1 (+ 1 1))", Object::Bool(true)),
-            ("(< (- 2 1) (+ 1 1))", Object::Bool(true)),
-            ("(< 1 2 3 4 5)", Object::Bool(true)),
-            ("(< 1 2 3 4 1)", Object::Bool(false)),
-            //
-            ("(> 2 1)", Object::Bool(true)),
-            ("(> 1 2)", Object::Bool(false)),
-            ("(> 1 1 )", Object::Bool(false)),
-            ("(> (+ 1 1) 1)", Object::Bool(true)),
-            ("(> (+ 1 1) (- 2 1))", Object::Bool(true)),
-            ("(> 1 2 3 4 5)", Object::Bool(false)),
-            ("(> 1 2 3 4 1)", Object::Bool(true)),
-            //
-            ("(begin (+ 2 1))", Object::Num(Int(3))),
-            ("(begin (+ 2 1) (+ 2 3))", Object::Num(Int(5))),
-            ("(begin (+ 2 1) (+ 2 3) ())", Object::Nil),
-            //
-            ("(begin (define a) a)", Object::Undef),
-            ("(begin (define a 1) a)", Object::Num(Int(1))),
-            ("(begin (define a (+ 1 2)) a)", Object::Num(Int(3))),
-            ("(define a)", Object::Undef),
-            //
-            ("(begin (define a) (set! a 1) a)", Object::Num(Int(1))),
-            ("(begin (define a) (set! a (+ 1 2)) a)", Object::Num(Int(3))),
-            //
-            (
-                "(cons 1 2)",
-                cons_pair(Object::Num(Int(1)), Object::Num(Int(2))),
-            ),
-            //
-            ("(car (cons 1 2))", Object::Num(Int(1))),
-            ("(cdr (cons 1 2))", Object::Num(Int(2))),
-            ("(car (cons 2 ()))", Object::Num(Int(2))),
-            ("(cdr (cons 2 ()))", Object::Nil),
-            ("(car (cons (+ 3 4) 2))", Object::Num(Int(7))),
-            ("(cdr (cons (+ 3 4) 2))", Object::Num(Int(2))),
-            ("(car (cons 1 (cons 2 (cons 3 ()))))", Object::Num(Int(1))),
-            (
-                "(cdr (cons 1 (cons 2 (cons 3 ()))))",
-                cons_pair(
-                    Object::Num(Int(2)),
-                    cons_pair(Object::Num(Int(3)), Object::Nil),
-                ),
-            ),
-            //
-            ("(list 1)", build_list(vec![Object::Num(Int(1))])),
-            (
-                "(list 1 2)",
-                build_list(vec![Object::Num(Int(1)), Object::Num(Int(2))]),
-            ),
-            (
-                "(list (+ 1 2) (define a) (> 2 1))",
-                build_list(vec![Object::Num(Int(3)), Object::Undef, Object::Bool(true)]),
-            ),
-            ("(list)", Object::Nil),
-            //
-            (
-                "(list #t #f)",
-                build_list(vec![Object::Bool(true), Object::Bool(false)]),
-            ),
-            //
-            ("(eq? 0 0)", Object::Bool(true)),
-            ("(eq? 0 1)", Object::Bool(false)),
-            ("(eq? #t #t)", Object::Bool(true)),
-            ("(eq? #t #f)", Object::Bool(false)),
-            ("(eq? #t 0)", Object::Bool(false)),
-            ("(eq? (cons 0 0) (cons 0 0))", Object::Bool(false)),
-            ("(eq? (list) (list))", Object::Bool(true)),
-            ("(not #f)", Object::Bool(true)),
-            ("(not #t)", Object::Bool(false)),
-            ("(not 1)", Object::Bool(false)),
-            ("(not (cons 1 2))", Object::Bool(false)),
-            //
-            ("(if #t 1 2)", Object::Num(Int(1))),
-            ("(if #f 1 2)", Object::Num(Int(2))),
-            ("(if #f 1)", Object::Undef),
-            ("(if (eq? 1 1) #f #t)", Object::Bool(false)),
-            ("(if (lambda ()) 1 2)", Object::Num(Int(1))),
-            //
-            ("(cond (#f 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(3))),
-            ("(cond (#t 1) (#f 2) (#t 3) (else 4))", Object::Num(Int(1))),
-            ("(cond (#t 1))", Object::Num(Int(1))),
-            ("(cond (#f 1) (#f 2))", Object::Undef),
-            ("(cond (else 1))", Object::Num(Int(1))),
-            (
-                "(cond ((define a) 1) (#f 2) (#t 3) (else 4))",
-                Object::Num(Int(1)),
-            ),
-            (
-                "(cond ((+ 1 1) 1) (#f 2) (#t 3) (else 4))",
-                Object::Num(Int(1)),
-            ),
-            //
-            ("(let ((a 1)) (+ a 2))", Object::Num(Int(3))),
-            ("(let ((a 1) (b 2)) (+ a b))", Object::Num(Int(3))),
-            ("(let ((1 2)) (+ 3 4))", Object::Num(Int(7))),
-            ("(let () (+ 1 2))", Object::Num(Int(3))),
-            //
-            ("((lambda () 1))", Object::Num(Int(1))),
-            ("((lambda (p) p) 2)", Object::Num(Int(2))),
-            ("((lambda (a b) (+ a b)) 1 2)", Object::Num(Int(3))),
-            (
-                "(
-                begin
-                (define a 1)
-                (define b 2)
-                ((lambda (a b) (+ a b)) 3 4)
-                )",
-                Object::Num(Int(7)),
-            ),
-            (
-                "(
-                begin
-                (define a 1)
-                (define b 2)
-                ((lambda (c d) (+ a b c d)) 3 4)
-                )",
-                Object::Num(Int(10)),
-            ),
-            ("((lambda ()))", Object::Num(Int(0))),
-            ("((lambda (a b c)) 1 2 3)", Object::Num(Int(0))),
-            //
-            (
-                "(
-                begin
-                (define add (lambda (a b) (+ a b)))
-                (add 1 2)
-                )",
-                Object::Num(Int(3)),
-            ),
-            (
-                "(
-                begin
-                (define add)
-                (set! add (lambda (a b) (+ a b)))
-                (add 1 2)
-                )",
-                Object::Num(Int(3)),
-            ),
-            (
-                "(
-                begin
-                (define abs)
-                (set! abs (lambda (a) (if (< a 0) (* -1 a) a)))
-                (abs 2)
-                )",
-                Object::Num(Int(2)),
-            ),
-        ];
-        let env = env::new_env(HashMap::new());
-        for (input, expected) in tests.into_iter() {
-            let object = eval(
-                parser::parse_program(lexer::lex(input).unwrap()).unwrap(),
-                &env,
-            )
-            .unwrap();
-            assert_eq!(expected, object)
-        }
-    }
-    #[test]
-    fn test_eval_ng() {
-        use std::collections::HashMap;
-
-        let tests = vec![
-            //
-            ("+", EvalError::NotImplementedSyntax),
-            ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
-            ("(/ 1 0)", EvalError::ZeroDivision),
-            ("(/ 0)", EvalError::ZeroDivision),
-            ("(< 1)", EvalError::InvalidSyntax("".to_string())),
-            ("(> 1)", EvalError::InvalidSyntax("".to_string())),
-            ("(define)", EvalError::InvalidSyntax(format!(""))),
-            ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
-            ("(define (+ 1 2))", EvalError::NotImplementedSyntax),
-            ("(define 1)", EvalError::InvalidSyntax(format!(""))),
-            ("(define + 2)", EvalError::NotImplementedSyntax),
-            ("(define a 1 2)", EvalError::InvalidSyntax(format!(""))),
-            ("(car 1)", EvalError::InvalidSyntax(format!(""))),
-            ("(car 1 2)", EvalError::InvalidSyntax(format!(""))),
-            ("(not)", EvalError::InvalidSyntax(format!(""))),
-            ("(not 1 2)", EvalError::InvalidSyntax(format!(""))),
-            ("(not 1 2 3)", EvalError::InvalidSyntax(format!(""))),
-            ("(if)", EvalError::InvalidSyntax(format!(""))),
-            ("(if #t)", EvalError::InvalidSyntax(format!(""))),
-            ("(if #t 1 2 3)", EvalError::InvalidSyntax(format!(""))),
-            ("(let  a (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
-            ("(let (a) (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
-            ("(let (a 1) (+ 1 2))", EvalError::InvalidSyntax(format!(""))),
-            (
-                "(let ((a 1 2)) (+ 1 2))",
-                EvalError::InvalidSyntax(format!("")),
-            ),
-            ("(lambda)", EvalError::InvalidSyntax(format!(""))),
-        ];
-
-        let env = env::new_env(HashMap::new());
-        for (input, expected) in tests.into_iter() {
-            let l = lexer::lex(input).unwrap();
-            let p = parser::parse_program(l).unwrap();
-            match eval(p, &env) {
-                Ok(_) => panic!("expected err. but ok. {:?}", input),
-                Err(e) => match expected {
-                    EvalError::ZeroDivision | EvalError::NotImplementedSyntax => {
-                        assert_eq!(expected, e)
-                    }
-                    EvalError::InvalidSyntax(_) => {
-                        if let EvalError::InvalidSyntax(_) = e {
-                        } else {
-                            panic!("expected {:?}. but {:?}.", expected, e);
-                        }
-                    }
-                    EvalError::InvalidApplication(_) => {
-                        if let EvalError::InvalidApplication(_) = e {
-                        } else {
-                            panic!("expected {:?}. but {:?}.", expected, e);
-                        }
-                    }
-                    EvalError::UnboundVariable(_) => {
-                        if let EvalError::UnboundVariable(_) = e {
-                        } else {
-                            panic!("expected {:?}. but {:?}.", expected, e);
-                        }
-                    }
-                    EvalError::WrongNumberArguments(_, _) => {
-                        if let EvalError::UnboundVariable(_) = e {
-                        } else {
-                            panic!("expected {:?}. but {:?}.", expected, e);
-                        }
-                    }
-                },
-            }
-        }
-    }
 }

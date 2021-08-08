@@ -1,4 +1,5 @@
 extern crate num;
+use crate::env;
 use crate::env::RefEnv;
 use crate::parser::Unit;
 use num::rational::{Ratio, Rational64};
@@ -8,7 +9,7 @@ use std::iter::{Product, Sum};
 use std::ops::{Add, Div, Mul, Sub};
 
 /// scheme評価結果値
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Object {
     /// BOOLEAN
     Bool(bool),
@@ -16,8 +17,10 @@ pub enum Object {
     Num(Number),
     /// ペア
     Pair(Box<Object>, Box<Object>),
-    /// クロージャー
-    Procedure(Vec<Unit>, Option<Unit>, RefEnv),
+    /// クロージャー. param, block, env
+    Procedure(Vec<Unit>, Option<Vec<Unit>>, RefEnv),
+    /// サブルーチン
+    Subr(&'static str),
     /// nil
     Nil,
     /// 未定義．
@@ -52,6 +55,47 @@ impl fmt::Display for Object {
                 write!(f, "{}", to_string_pair(*first, *second))
             }
             Self::Procedure(params, _, _) => write!(f, "{}", to_string_closure(&params)),
+            Self::Subr(s) => write!(f, "#<subr ({} :rest args)>", s),
+        }
+    }
+}
+impl PartialEq for Object {
+    fn eq(&self, rhs: &Object) -> bool {
+        use Object::*;
+        match self {
+            Undef => match rhs {
+                Undef => true,
+                _ => false,
+            },
+            Nil => match rhs {
+                Nil => true,
+                _ => false,
+            },
+            Bool(l) => match rhs {
+                Bool(r) => l == r,
+                _ => false,
+            },
+            Num(l) => match rhs {
+                Num(r) => l == r,
+                _ => false,
+            },
+            Subr(l) => match rhs {
+                Subr(r) => l == r,
+                _ => false,
+            },
+            Procedure(lp, lb, le) => match rhs {
+                Procedure(rp, rb, re) => {
+                    let b1 = lp == rp;
+                    let b2 = lb == rb;
+                    let b3 = env::equals(&le, &re);
+                    b1 && b2 && b3
+                }
+                _ => false,
+            },
+            Pair(lf, ls) => match rhs {
+                Pair(rf, rs) => lf == rf && ls == rs,
+                _ => false,
+            },
         }
     }
 }
@@ -383,6 +427,209 @@ mod test {
             let env = new_env(HashMap::new());
             let obj = eval(elements, &env).unwrap();
             assert_eq!(expected, format!("{}", obj))
+        }
+    }
+
+    #[test]
+    fn test_partialeq_bool() {
+        use Number::*;
+        use Object::*;
+        let tests = vec![
+            //
+            ((Bool(true), Bool(true)), true),
+            ((Bool(true), Bool(false)), false),
+            //
+            ((Bool(true), Num(Int(1))), false),
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
+        }
+    }
+
+    #[test]
+    fn test_partialeq_num() {
+        use Number::*;
+        use Object::*;
+        let tests = vec![
+            //
+            ((Bool(true), Bool(true)), true),
+            ((Bool(true), Bool(false)), false),
+            ((Bool(true), Num(Int(1))), false),
+            //
+            ((Num(Int(1)), Num(Int(1))), true),
+            ((Num(Int(0)), Num(Int(1))), false),
+            ((Num(Int(1)), Num(Rat(Ratio::new(2, 2)))), true),
+            ((Num(Int(1)), Num(Rat(Ratio::new(4, 2)))), false),
+            ((Num(Int(1)), Bool(true)), false),
+            //
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
+        }
+    }
+    #[test]
+    fn test_partialeq_pair() {
+        use Number::*;
+        use Object::*;
+        let tests = vec![
+            // 同一種 true, false
+            (
+                (
+                    cons_pair(Bool(true), Num(Int(1))),
+                    cons_pair(Bool(true), Num(Int(1))),
+                ),
+                true,
+            ),
+            (
+                (
+                    build_list(vec![Bool(true), Bool(false), Num(Int(1))]),
+                    build_list(vec![Bool(true), Bool(false), Num(Int(1))]),
+                ),
+                true,
+            ),
+            (
+                (
+                    cons_pair(Bool(true), Num(Int(1))),
+                    cons_pair(Bool(true), Num(Int(2))),
+                ),
+                false,
+            ),
+            (
+                (
+                    cons_pair(Bool(true), Num(Int(1))),
+                    build_list(vec![Bool(true), Bool(false), Num(Int(1))]),
+                ),
+                false,
+            ),
+            // 別種
+            ((cons_pair(Bool(true), Num(Int(1))), Bool(true)), false),
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
+        }
+    }
+    #[test]
+    fn test_partialeq_procedure() {
+        use crate::parser::Atom;
+        use crate::parser::Atom::*;
+        use crate::parser::Unit::*;
+        use std::collections::HashMap;
+        use Object::*;
+        let env_a = env::new_env(HashMap::new());
+        let env_b = env::new_env(HashMap::new());
+        let param_a = vec![Bare(Ident("a".to_string()))];
+        let param_b = vec![Bare(Ident("a".to_string()))];
+        let param_c = vec![Bare(Ident("c".to_string()))];
+
+        let tests = vec![
+            // 同一種 true, false
+            // true
+            (
+                (
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                ),
+                true,
+            ),
+            (
+                (
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                    Procedure(param_b.clone(), None, env_a.clone()),
+                ),
+                true,
+            ),
+            (
+                (
+                    Procedure(
+                        param_a.clone(),
+                        Some(vec![Bare(Atom::Num(1))]),
+                        env_a.clone(),
+                    ),
+                    Procedure(
+                        param_a.clone(),
+                        Some(vec![Bare(Atom::Num(1))]),
+                        env_a.clone(),
+                    ),
+                ),
+                true,
+            ),
+            // false
+            (
+                (
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                    Procedure(param_c.clone(), None, env_a.clone()),
+                ),
+                false,
+            ),
+            (
+                (
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                    Procedure(
+                        param_b.clone(),
+                        Some(vec![Bare(Atom::Num(1))]),
+                        env_a.clone(),
+                    ),
+                ),
+                false,
+            ),
+            (
+                (
+                    Procedure(
+                        param_a.clone(),
+                        Some(vec![Bare(Atom::Num(1))]),
+                        env_a.clone(),
+                    ),
+                    Procedure(
+                        param_a.clone(),
+                        Some(vec![Bare(Atom::Num(1))]),
+                        env_b.clone(),
+                    ),
+                ),
+                false,
+            ),
+            (
+                (
+                    Procedure(param_a.clone(), None, env_a.clone()),
+                    Object::Bool(true),
+                ),
+                false,
+            ),
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
+        }
+    }
+    #[test]
+    fn test_partialeq_subroutine() {
+        use Number::*;
+        use Object::*;
+        let tests = vec![
+            // 同一種 true, false
+            ((Subr("car"), Subr("car")), true),
+            ((Subr("car"), Subr("cdr")), false),
+            // 別種
+            ((Subr("car"), Num(Int(1))), false),
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
+        }
+    }
+    #[test]
+    fn test_partialeq_nil_undef() {
+        use Object::*;
+        let tests = vec![
+            ((Nil, Nil), true),
+            ((Undef, Undef), true),
+            ((Nil, Undef), false),
+        ];
+
+        for ((a, b), expected) in tests.into_iter() {
+            assert_eq!(expected, a == b);
         }
     }
 }

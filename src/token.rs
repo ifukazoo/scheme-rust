@@ -21,10 +21,13 @@ pub enum Token {
     FALSE,
     EQUAL,
     NOT,
+    ISZERO,
     IF,
     COND,
     ELSE,
     LET,
+    LETA,
+    LETREC,
     LAMBDA,
     /// 変数
     VAR(String),

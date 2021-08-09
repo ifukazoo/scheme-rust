@@ -53,11 +53,7 @@ pub fn equals(lhs: &RefEnv, rhs: &RefEnv) -> bool {
         }
     } else {
         // None
-        if let None = &renv.outer {
-            true
-        } else {
-            false
-        }
+        renv.outer.is_none()
     };
 
     if !eq_outer {

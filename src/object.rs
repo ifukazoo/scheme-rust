@@ -63,14 +63,8 @@ impl PartialEq for Object {
     fn eq(&self, rhs: &Object) -> bool {
         use Object::*;
         match self {
-            Undef => match rhs {
-                Undef => true,
-                _ => false,
-            },
-            Nil => match rhs {
-                Nil => true,
-                _ => false,
-            },
+            Undef => matches!(rhs, Undef),
+            Nil => matches!(rhs, Nil),
             Bool(l) => match rhs {
                 Bool(r) => l == r,
                 _ => false,

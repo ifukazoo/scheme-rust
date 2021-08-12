@@ -61,6 +61,17 @@ pub enum ParseError {
     IllegalSyntax(Token),
 }
 
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::EmptyProgram => write!(f, "empty program."),
+            Self::UnclosedParen => write!(f, "unclosed paren."),
+            Self::ExtraToken(t) => write!(f, "extra token:[{:?}].", t),
+            Self::IllegalSyntax(t) => write!(f, "iextra token:[{:?}].", t),
+        }
+    }
+}
+
 /// 構文解析
 pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
     let mut tokens = tokens.into_iter().peekable();

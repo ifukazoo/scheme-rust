@@ -6,6 +6,7 @@ use crate::parser::Atom;
 use crate::parser::Unit;
 use num::Zero;
 use std::collections::HashMap;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
@@ -21,6 +22,28 @@ pub enum EvalError {
     UnboundVariable(String),
     /// 引数異常
     WrongNumberArguments(usize, usize),
+}
+
+impl fmt::Display for EvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::InvalidApplication(s) => write!(f, "invalid application:[{}].", s),
+            Self::InvalidSyntax(s) => write!(f, "invalid syntax:[{}].", s),
+            Self::NotImplementedSyntax => write!(f, "not implemented syntax."),
+            Self::UnboundVariable(s) => write!(f, "unbound variable:[{}]", s),
+            Self::WrongNumberArguments(expected, actual) => write!(
+                f,
+                "wrong number arguments. expected {}, but {}.",
+                expected, actual
+            ),
+            Self::ZeroDivision => write!(f, "zero division occured."),
+        }
+    }
+}
+
+pub fn eval_program(element: Unit) -> Result<Object, EvalError> {
+    let env = new_env(HashMap::new());
+    eval(element, &env)
 }
 
 pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {

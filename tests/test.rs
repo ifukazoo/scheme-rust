@@ -1,5 +1,4 @@
-use scheme_rust::env;
-use scheme_rust::eval::{eval, EvalError};
+use scheme_rust::eval::{eval_program, EvalError};
 use scheme_rust::lexer;
 use scheme_rust::object;
 use scheme_rust::object::build_list;
@@ -12,7 +11,6 @@ fn test_eval() {
     use object::Number::Int;
     use object::Number::Rat;
     use object::Object;
-    use std::collections::HashMap;
 
     let tests = vec![
         //
@@ -387,20 +385,14 @@ fn test_eval() {
         ("(not #f)       ", Object::Bool(true)),
         ("(not (list))   ", Object::Bool(false)),
     ];
-    let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {
-        let object = eval(
-            parser::parse_program(lexer::lex(input).unwrap()).unwrap(),
-            &env,
-        )
-        .unwrap();
+        let object =
+            eval_program(parser::parse_program(lexer::lex(input).unwrap()).unwrap()).unwrap();
         assert_eq!(expected, object)
     }
 }
 #[test]
 fn test_eval_ng() {
-    use std::collections::HashMap;
-
     let tests = vec![
         //
         ("(1 1 2)", EvalError::InvalidApplication("".to_string())),
@@ -433,11 +425,11 @@ fn test_eval_ng() {
         ("(zero? (list 1 2))", EvalError::InvalidSyntax(format!(""))),
     ];
 
-    let env = env::new_env(HashMap::new());
     for (input, expected) in tests.into_iter() {
         let l = lexer::lex(input).unwrap();
         let p = parser::parse_program(l).unwrap();
-        match eval(p, &env) {
+        let result = eval_program(p);
+        match result {
             Ok(_) => panic!("expected err. but ok. {:?}", input),
             Err(e) => match expected {
                 EvalError::ZeroDivision | EvalError::NotImplementedSyntax => {

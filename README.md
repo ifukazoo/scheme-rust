@@ -1,31 +1,49 @@
 # scheme-rust
 
-Rust言語によるScheme風言語実装. Rustの勉強が目的でSchemeの言語仕様に合ってない部分が多々あります．  
-A Scheme-like language implementation in Rust. This is an attempt to learn Rust, and there are many parts that don't conform to language specification.
+Rust言語によるScheme言語実装.
 
-## 型
+## コマンド
+
+* repl
+
+```shell
+$ scheme-rust-repl
+>>((lambda (x) (+ x 1)) 1)
+2
+```
+
+* interpreter
+
+```shell
+$ echo "(car (cons 1 2))" | scheme-rust 
+1
+```
+
+## 実装済みの機能
+
+### 型
 
 * boolean
 * number
 * procedure
 
-## 式
+### 式
 
-### 変数参照
+#### 変数参照
 
 ```scheme
 (define x 28)
 x ;28
 ```
 
-### 手続きの呼び出し
+#### 手続きの呼び出し
 
 ```scheme
 (+ 3 4) ;3
 ((if #f + *) 3 4) ;12
 ```
 
-### 手続き
+#### 手続き
 
 ```scheme
 (lambda (x) (+ x x))
@@ -41,7 +59,7 @@ x ;28
 (add4 6) ;10
 ```
 
-### 条件式
+#### 条件式
 
 ```scheme
 (if (> 3 2) 1 2) ;1
@@ -51,7 +69,7 @@ x ;28
     (+ 3 2)) ;1
 ```
 
-### 代入
+#### 代入
 
 ```scheme
 (define x 2)
@@ -60,7 +78,7 @@ x ;28
 (+ x 1) ;5
 ```
 
-### 条件式 cond
+#### 条件式 cond
 
 ```scheme
 (cond ((> 3 2) 2)
@@ -70,7 +88,7 @@ x ;28
       (else    1)) ;1
 ```
 
-### 束縛
+#### 束縛
 
 ```scheme
 (let ((x 2) (y 3))
@@ -100,7 +118,7 @@ x ;28
     ; #t
 ```
 
-### 逐次式
+#### 逐次式
 
 ```scheme
 (define x 0)
@@ -109,9 +127,9 @@ x ;28
     ; #6
 ```
 
-## プログラム構造
+### プログラム構造
 
-### 定義
+#### 定義
 
 ```scheme
 (define add3
@@ -135,9 +153,9 @@ x ;28
 ;45
 ```
 
-## 標準手続き
+### 標準手続き
 
-### 等価性述語
+#### 等価性述語
 
 ```scheme
 (equal? 2 2) ; #t
@@ -149,7 +167,7 @@ x ;28
 (equal? car car) ; => #t
 ```
 
-### 数
+#### 数
 
 ```scheme
 (+ 3 4) ; 7
@@ -159,7 +177,7 @@ x ;28
 (*)     ; 1
 ```
 
-### ブーリアン
+#### ブーリアン
 
 ```scheme
 (not #t)       ; #f

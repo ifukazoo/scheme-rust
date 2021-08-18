@@ -136,17 +136,17 @@ where
     // `(`の刈り取り
     tokens.next().unwrap();
 
-    let mut arr = vec![];
+    let mut units = vec![];
     while let Some(e) = tokens.peek() {
         match e {
             Token::RPAREN => break,
             Token::LPAREN => {
-                let inner = parse_array(tokens)?;
-                arr.push(Unit::Paren(inner));
+                let inner_units = parse_array(tokens)?;
+                units.push(Unit::Paren(inner_units));
             }
             _ => {
-                let a = parse_atom(tokens)?;
-                arr.push(Unit::Bare(a));
+                let atom = parse_atom(tokens)?;
+                units.push(Unit::Bare(atom));
             }
         }
     }
@@ -161,7 +161,7 @@ where
     } else {
         // `)`の刈り取り
         tokens.next().unwrap();
-        Ok(arr)
+        Ok(units)
     }
 }
 

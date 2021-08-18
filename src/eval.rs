@@ -65,16 +65,29 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
         Atom::App(a) => Ok(Object::Subr(a)),
     }
 }
-fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    if elements.is_empty() {
+fn eval_paren(units: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    if units.is_empty() {
         Ok(Object::Nil)
     } else {
         // (op operand operand operand ...)
-        let op = &elements[0];
-        let operand = &elements[1..];
+        let op = &units[0];
+        let operand = &units[1..];
         match op {
+            // ((lambda (a) a) 0)
+            Unit::Paren(p) => {
+                let f = eval_paren(p.clone(), env)?;
+                match f {
+                    Object::Procedure(params, block, closed_env) => {
+                        eval_closure(params, block, closed_env, operand.to_vec(), env)
+                    }
+                    Object::Subr(s) => apply(s, operand.to_vec(), env),
+                    _ => Err(EvalError::InvalidApplication(format!("{:?}", p))),
+                }
+            }
+
             // (+ 1 2), (define ), (lambda ) ,...
             Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
+
             // (myfunc 1 2 3)
             Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
@@ -84,18 +97,8 @@ fn eval_paren(elements: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Some(Object::Subr(s)) => apply(s, operand.to_vec(), env),
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
+
             Unit::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
-            Unit::Paren(units) => {
-                // ((lambda (a) a) 0)
-                let f = eval_paren(units.clone(), env)?;
-                match f {
-                    Object::Procedure(params, block, closed_env) => {
-                        eval_closure(params, block, closed_env, operand.to_vec(), env)
-                    }
-                    Object::Subr(s) => apply(s, operand.to_vec(), env),
-                    _ => Err(EvalError::InvalidApplication(format!("{:?}", units))),
-                }
-            }
         }
     }
 }
@@ -126,23 +129,6 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "zero" => is_zero(args, env),
         _ => Err(EvalError::InvalidApplication(operation.to_string())),
     }
-}
-
-// Number型を要求する引数をNumber型のVectorに変換
-fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
-    let mut v = vec![];
-    for n in elements.into_iter() {
-        let obj = eval(n, env)?;
-        if let Object::Num(n) = obj {
-            v.push(n);
-        } else {
-            return Err(EvalError::InvalidSyntax(format!(
-                "四則演算の引数に数字ではないものがある.[{:?}]",
-                obj
-            )));
-        }
-    }
-    Ok(v)
 }
 
 fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -664,6 +650,23 @@ fn eval_closure(
             eval_multi(block, &caller_env)
         }
     }
+}
+
+// Number型を要求する引数をNumber型のVectorに変換
+fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
+    let mut v = vec![];
+    for n in elements.into_iter() {
+        let obj = eval(n, env)?;
+        if let Object::Num(n) = obj {
+            v.push(n);
+        } else {
+            return Err(EvalError::InvalidSyntax(format!(
+                "四則演算の引数に数字ではないものがある.[{:?}]",
+                obj
+            )));
+        }
+    }
+    Ok(v)
 }
 
 // (< 1 2 3 4) とか

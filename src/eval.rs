@@ -8,6 +8,7 @@ use num::Zero;
 use std::collections::HashMap;
 use std::fmt;
 
+// 評価時エラー
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
     /// 未実装の構文 (本家のschemeは実装している)

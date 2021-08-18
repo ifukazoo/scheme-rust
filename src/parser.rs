@@ -81,15 +81,11 @@ pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
         let a = parse_atom(&mut tokens)?;
         Ok(Unit::Bare(a))
     } else {
-        match parse_array(&mut tokens) {
-            Ok(a) => {
-                if tokens.peek().is_none() {
-                    Ok(Unit::Paren(a))
-                } else {
-                    Err(ParseError::ExtraToken(tokens.next().unwrap()))
-                }
-            }
-            Err(e) => Err(e),
+        let units = parse_array(&mut tokens)?;
+        if tokens.peek().is_none() {
+            Ok(Unit::Paren(units))
+        } else {
+            Err(ParseError::ExtraToken(tokens.next().unwrap()))
         }
     }
 }

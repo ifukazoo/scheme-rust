@@ -132,15 +132,13 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
 }
 
 fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(args, env)?;
-    let acc = operands.into_iter().sum();
+    let nums = to_num_vec(args, env)?;
+    let acc = nums.into_iter().sum();
     Ok(Object::Num(acc))
 }
 fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(args, env)?;
-    let acc = operands.into_iter().product();
+    let nums = to_num_vec(args, env)?;
+    let acc = nums.into_iter().product();
     Ok(Object::Num(acc))
 }
 fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -148,17 +146,14 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("引き算の引数が0.".to_string()));
     }
-    // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(args, env)?;
-    let first = operands[0];
-
+    let nums = to_num_vec(args, env)?;
     // lispの引き算は引数1の場合と複数の場合で計算方法が違う．
     // (- 2)
-    if operands.len() == 1 {
-        Ok(Object::Num(Number::Int(-1) * first))
+    if nums.len() == 1 {
+        Ok(Object::Num(Number::Int(-1) * nums[0]))
     } else {
-        let sum = operands[1..].iter().fold(first, |acc, o| acc - *o);
-        Ok(Object::Num(sum))
+        let acc = nums[1..].into_iter().fold(nums[0], |acc, o| acc - *o);
+        Ok(Object::Num(acc))
     }
 }
 fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -167,25 +162,25 @@ fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         return Err(EvalError::InvalidSyntax("割り算の引数が0.".to_string()));
     }
     // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(args, env)?;
+    let nums = to_num_vec(args, env)?;
 
     // (/ 2)
-    if operands.len() == 1 {
-        let divider = operands[0];
+    if nums.len() == 1 {
+        let divider = nums[0];
         if divider.is_zero() {
             Err(EvalError::ZeroDivision)
         } else {
             Ok(Object::Num(Number::Int(1) / divider))
         }
     } else {
-        let mut sum = operands[0];
-        for r in operands[1..].iter() {
-            if r.is_zero() {
+        let mut acc = nums[0];
+        for divider in nums[1..].iter() {
+            if divider.is_zero() {
                 return Err(EvalError::ZeroDivision);
             }
-            sum = sum / *r;
+            acc = acc / *divider;
         }
-        Ok(Object::Num(sum))
+        Ok(Object::Num(acc))
     }
 }
 fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -653,9 +648,9 @@ fn eval_closure(
 }
 
 // Number型を要求する引数をNumber型のVectorに変換
-fn to_num_vec(elements: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
+fn to_num_vec(args: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
-    for n in elements.into_iter() {
+    for n in args.into_iter() {
         let obj = eval(n, env)?;
         if let Object::Num(n) = obj {
             v.push(n);
@@ -680,13 +675,12 @@ fn fold_cmp(
             "application requires at least two argument.".to_string(),
         ));
     }
-    // 引数をi64の配列に変換して集積する
-    let operands = to_num_vec(args, env)?;
-    let mut prev = operands[0];
+    let nums = to_num_vec(args, env)?;
+    let mut left = nums[0];
     let mut acc = true;
-    for operand in operands[1..].iter() {
-        acc = cmp(prev, *operand);
-        prev = *operand;
+    for right in nums[1..].iter() {
+        acc = cmp(left, *right);
+        left = *right;
     }
     Ok(Object::Bool(acc))
 }

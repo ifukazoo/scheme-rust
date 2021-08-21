@@ -60,7 +60,7 @@ impl fmt::Display for Object {
     }
 }
 impl PartialEq for Object {
-    fn eq(&self, rhs: &Object) -> bool {
+    fn eq(&self, rhs: &Self) -> bool {
         use Object::*;
         match self {
             Undef => matches!(rhs, Undef),

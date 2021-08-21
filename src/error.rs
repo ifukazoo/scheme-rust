@@ -4,7 +4,7 @@ use crate::parser::ParseError;
 use std::fmt;
 use std::io;
 
-/// エラー
+/// Scheme-Rustエラー
 #[derive(Debug)]
 pub enum SRError {
     // 評価時のエラー

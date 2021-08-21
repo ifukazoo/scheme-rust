@@ -189,14 +189,7 @@ fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     fold_cmp(args, |a, b| a > b, env)
 }
-// 複文の評価
-fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    let mut result = Object::Num(Number::Int(0));
-    for a in args.into_iter() {
-        result = eval(a, env)?;
-    }
-    Ok(result)
-}
+
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax(
@@ -308,6 +301,7 @@ fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         )),
     }
 }
+// (list exp exp exp)
 fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
@@ -325,8 +319,7 @@ fn equal(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let right = args.get(1).unwrap();
     let right = eval(right.clone(), env)?;
 
-    // 左辺と右辺の型が同じ場合のみ比較．違う場合はfalse
-    // schemeのequal?とObjectのPartialEqが等しくなるように実装している．
+    // Object の PartialEq を利用している．
     Ok(Object::Bool(left == right))
 }
 fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -645,6 +638,15 @@ fn eval_closure(
             eval_multi(block, &caller_env)
         }
     }
+}
+
+// 複文の評価
+fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+    let mut result = Object::Num(Number::Int(0));
+    for a in args.into_iter() {
+        result = eval(a, env)?;
+    }
+    Ok(result)
 }
 
 // Number型を要求する引数をNumber型のVectorに変換

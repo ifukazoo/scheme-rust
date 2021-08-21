@@ -152,7 +152,7 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if nums.len() == 1 {
         Ok(Object::Num(Number::Int(-1) * nums[0]))
     } else {
-        let acc = nums[1..].into_iter().fold(nums[0], |acc, o| acc - *o);
+        let acc = nums[1..].iter().fold(nums[0], |acc, o| acc - *o);
         Ok(Object::Num(acc))
     }
 }
@@ -376,7 +376,7 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 
     // 何もマッチするものがなければ undef
     let mut result = Object::Undef;
-    for arg in args.into_iter() {
+    for arg in args.iter() {
         match arg {
             Unit::Bare(_) => {
                 return Err(EvalError::InvalidSyntax(

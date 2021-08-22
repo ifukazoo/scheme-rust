@@ -401,7 +401,7 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     _ => {
                         let first = eval(first.clone(), env)?;
                         if let Object::Bool(false) = first {
-                            // 何もしない
+                            // 何もしない (continue)
                             // schemeの condは 条件がfalseだとパス．それ以外はevalとなる
                         } else {
                             let second = v.get(1).unwrap();

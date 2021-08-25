@@ -581,6 +581,7 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     // (lambda (a b) (...) (...))
     //          0     1     2
 
+    // パラメータ部
     let first = args.get(0).unwrap();
     match first {
         // (lambda a)

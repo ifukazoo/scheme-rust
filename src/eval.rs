@@ -455,7 +455,7 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 }
             }
             // (let (bind_stmt) (...) (...) (...))
-            //       0           1     2     3
+            //                  ^^^^^^^^^^^^^^^^^ block
             let block = if args.len() == 1 {
                 None
             } else {
@@ -499,8 +499,9 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
                         if let Unit::Bare(Atom::Ident(key)) = sym {
-                            let inner = new_env(HashMap::new());
                             let value = eval(value.clone(), &leta_env)?;
+                            // 束縛した環境を1つずつ追加していく
+                            let inner = new_env(HashMap::new());
                             set_value(&inner, key, value);
                             add_outer(&inner, &leta_env);
                             leta_env = inner;
@@ -518,6 +519,7 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         }
     }
 }
+
 fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(

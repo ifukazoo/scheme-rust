@@ -111,7 +111,7 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
         "/" => div(args, env),
         "<" => lt(args, env),
         ">" => gt(args, env),
-        "begin" => eval_multi(args, env),
+        "begin" => eval_block(args, env),
         "define" => define(args, env),
         "set" => set(args, env),
         "cons" => cons(args, env),
@@ -514,7 +514,7 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(Object::Num(Number::Int(0)))
             } else {
                 let block = args[1..].to_vec();
-                eval_multi(block, &leta_env)
+                eval_block(block, &leta_env)
             }
         }
     }
@@ -565,7 +565,7 @@ fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(Object::Num(Number::Int(0)))
             } else {
                 let block = args[1..].to_vec();
-                eval_multi(block, &letrec_env)
+                eval_block(block, &letrec_env)
             }
         }
     }
@@ -637,13 +637,13 @@ fn eval_closure(
                 }
             }
             add_outer(&caller_env, &closed_env);
-            eval_multi(block, &caller_env)
+            eval_block(block, &caller_env)
         }
     }
 }
 
 // 複文の評価
-fn eval_multi(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_block(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for a in args.into_iter() {
         result = eval(a, env)?;

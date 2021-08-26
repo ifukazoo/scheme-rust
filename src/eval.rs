@@ -71,30 +71,30 @@ fn eval_paren(units: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     } else {
         // (op operand operand operand ...)
         let op = &units[0];
-        let operand = &units[1..];
+        let args = &units[1..];
         match op {
             // ((lambda (a) a) 0)
             Unit::Paren(p) => {
                 let f = eval_paren(p.clone(), env)?;
                 match f {
                     Object::Procedure(params, block, closed_env) => {
-                        eval_closure(params, block, closed_env, operand.to_vec(), env)
+                        eval_closure(params, block, closed_env, args.to_vec(), env)
                     }
-                    Object::Subr(s) => apply(s, operand.to_vec(), env),
+                    Object::Subr(s) => apply(s, args.to_vec(), env),
                     _ => Err(EvalError::InvalidApplication(format!("{:?}", p))),
                 }
             }
 
             // (+ 1 2), (define ), (lambda ) ,...
-            Unit::Bare(Atom::App(o)) => apply(o, operand.to_vec(), env),
+            Unit::Bare(Atom::App(o)) => apply(o, args.to_vec(), env),
 
             // (myfunc 1 2 3)
             Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
                 Some(Object::Procedure(params, block, closed_env)) => {
-                    eval_closure(params, block, closed_env, operand.to_vec(), env)
+                    eval_closure(params, block, closed_env, args.to_vec(), env)
                 }
-                Some(Object::Subr(s)) => apply(s, operand.to_vec(), env),
+                Some(Object::Subr(s)) => apply(s, args.to_vec(), env),
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
 
@@ -184,10 +184,10 @@ fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    fold_cmp(args, |a, b| a < b, env)
+    evam_cmp(args, |a, b| a < b, env)
 }
 fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
-    fold_cmp(args, |a, b| a > b, env)
+    evam_cmp(args, |a, b| a > b, env)
 }
 
 fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
@@ -652,25 +652,8 @@ fn eval_block(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     Ok(result)
 }
 
-// Number型を要求する引数をNumber型のVectorに変換
-fn to_num_vec(args: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
-    let mut v = vec![];
-    for n in args.into_iter() {
-        let obj = eval(n, env)?;
-        if let Object::Num(n) = obj {
-            v.push(n);
-        } else {
-            return Err(EvalError::InvalidSyntax(format!(
-                "四則演算の引数に数字ではないものがある.[{:?}]",
-                obj
-            )));
-        }
-    }
-    Ok(v)
-}
-
 // (< 1 2 3 4) とか
-fn fold_cmp(
+fn evam_cmp(
     args: Vec<Unit>,
     cmp: fn(Number, Number) -> bool,
     env: &RefEnv,
@@ -688,4 +671,21 @@ fn fold_cmp(
         left = *right;
     }
     Ok(Object::Bool(acc))
+}
+
+// Number型を要求する引数をNumber型のVectorに変換
+fn to_num_vec(args: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
+    let mut v = vec![];
+    for n in args.into_iter() {
+        let obj = eval(n, env)?;
+        if let Object::Num(n) = obj {
+            v.push(n);
+        } else {
+            return Err(EvalError::InvalidSyntax(format!(
+                "四則演算の引数に数字ではないものがある.[{:?}]",
+                obj
+            )));
+        }
+    }
+    Ok(v)
 }

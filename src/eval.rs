@@ -44,20 +44,20 @@ impl fmt::Display for EvalError {
 
 pub fn eval_program(element: Unit) -> Result<Object, EvalError> {
     let env = new_env(HashMap::new());
-    eval(element, &env)
+    eval(&element, &env)
 }
 
-pub fn eval(element: Unit, env: &RefEnv) -> Result<Object, EvalError> {
+pub fn eval(element: &Unit, env: &RefEnv) -> Result<Object, EvalError> {
     match element {
         Unit::Bare(a) => eval_atom(a, env),
         Unit::Paren(v) => eval_paren(v, env),
     }
 }
 
-pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
+pub fn eval_atom(atom: &Atom, env: &RefEnv) -> Result<Object, EvalError> {
     match atom {
-        Atom::Num(i) => Ok(Object::Num(Number::Int(i))),
-        Atom::Bool(b) => Ok(Object::Bool(b)),
+        Atom::Num(i) => Ok(Object::Num(Number::Int(*i))),
+        Atom::Bool(b) => Ok(Object::Bool(*b)),
         Atom::Ident(i) => match env::get_value(env, &i) {
             Some(obj) => Ok(obj),
             None => Err(EvalError::UnboundVariable(i.to_string())),
@@ -65,7 +65,7 @@ pub fn eval_atom(atom: Atom, env: &RefEnv) -> Result<Object, EvalError> {
         Atom::App(a) => Ok(Object::Subr(a)),
     }
 }
-fn eval_paren(units: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_paren(units: &Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     if units.is_empty() {
         Ok(Object::Nil)
     } else {
@@ -75,26 +75,26 @@ fn eval_paren(units: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         match op {
             // ((lambda (a) a) 0)
             Unit::Paren(p) => {
-                let f = eval_paren(p.clone(), env)?;
+                let f = eval_paren(p, env)?;
                 match f {
                     Object::Procedure(params, block, closed_env) => {
-                        eval_closure(params, block, closed_env, args.to_vec(), env)
+                        eval_closure(params, block, closed_env, args, env)
                     }
-                    Object::Subr(s) => apply(s, args.to_vec(), env),
+                    Object::Subr(s) => apply(s, args, env),
                     _ => Err(EvalError::InvalidApplication(format!("{:?}", p))),
                 }
             }
 
             // (+ 1 2), (define ), (lambda ) ,...
-            Unit::Bare(Atom::App(o)) => apply(o, args.to_vec(), env),
+            Unit::Bare(Atom::App(o)) => apply(o, args, env),
 
             // (myfunc 1 2 3)
             Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
                 Some(Object::Procedure(params, block, closed_env)) => {
-                    eval_closure(params, block, closed_env, args.to_vec(), env)
+                    eval_closure(params, block, closed_env, args, env)
                 }
-                Some(Object::Subr(s)) => apply(s, args.to_vec(), env),
+                Some(Object::Subr(s)) => apply(s, args, env),
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
 
@@ -103,7 +103,7 @@ fn eval_paren(units: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 
-fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn apply(operation: &str, args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     match operation {
         "+" => add(args, env),
         "-" => sub(args, env),
@@ -131,17 +131,17 @@ fn apply(operation: &str, args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalE
     }
 }
 
-fn add(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn add(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     let nums = to_num_vec(args, env)?;
     let acc = nums.into_iter().sum();
     Ok(Object::Num(acc))
 }
-fn mul(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn mul(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     let nums = to_num_vec(args, env)?;
     let acc = nums.into_iter().product();
     Ok(Object::Num(acc))
 }
-fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn sub(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("引き算の引数が0.".to_string()));
@@ -156,7 +156,7 @@ fn sub(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(acc))
     }
 }
-fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn div(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("割り算の引数が0.".to_string()));
@@ -183,14 +183,14 @@ fn div(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Num(acc))
     }
 }
-fn lt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn lt(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     evam_cmp(args, |a, b| a < b, env)
 }
-fn gt(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn gt(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     evam_cmp(args, |a, b| a > b, env)
 }
 
-fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn set(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax(
             "set!の引数の数が2でない.".to_string(),
@@ -221,12 +221,12 @@ fn set(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         },
     };
     let value = args.get(1).unwrap();
-    let value = eval(value.clone(), env)?;
+    let value = eval(value, env)?;
     env::set_value(env, symbol, value.clone());
     Ok(value)
 }
 
-fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn define(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "defineの引数の数が1でない.".to_string(),
@@ -258,29 +258,29 @@ fn define(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         Ok(Object::Undef)
     } else if args.len() == 2 {
         let value = args.get(1).unwrap();
-        let value = eval(value.clone(), env)?;
+        let value = eval(value, env)?;
         env::set_value(env, var, value);
         Ok(Object::Undef)
     } else {
         Err(EvalError::InvalidSyntax("defineの引数が3以上.".to_string()))
     }
 }
-fn cons(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cons(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax("consの引数が2以外.".to_string()));
     }
     let lhs = args.get(0).unwrap();
-    let lhs = eval(lhs.clone(), env)?;
+    let lhs = eval(lhs, env)?;
     let rhs = args.get(1).unwrap();
-    let rhs = eval(rhs.clone(), env)?;
+    let rhs = eval(rhs, env)?;
     Ok(cons_pair(lhs, rhs))
 }
-fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn car(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("carの引数が1以外".to_string()));
     }
     let obj = args.get(0).unwrap();
-    let obj = eval(obj.clone(), env)?;
+    let obj = eval(obj, env)?;
     match obj {
         Object::Pair(f, _) => Ok(*f),
         _ => Err(EvalError::InvalidSyntax(
@@ -288,12 +288,12 @@ fn car(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         )),
     }
 }
-fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cdr(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("cdrの引数が1以外.".to_string()));
     }
     let obj = args.get(0).unwrap();
-    let obj = eval(obj.clone(), env)?;
+    let obj = eval(obj, env)?;
     match obj {
         Object::Pair(_, s) => Ok(*s),
         _ => Err(EvalError::InvalidSyntax(
@@ -302,38 +302,38 @@ fn cdr(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 // (list exp exp exp)
-fn list(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn list(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
-        let e = eval(arg.clone(), env)?;
+        let e = eval(arg, env)?;
         o = cons_pair(e, o);
     }
     Ok(o)
 }
-fn equal(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn equal(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax("equal?の引数が2以外.".to_string()));
     }
     let left = args.get(0).unwrap();
-    let left = eval(left.clone(), env)?;
+    let left = eval(left, env)?;
     let right = args.get(1).unwrap();
-    let right = eval(right.clone(), env)?;
+    let right = eval(right, env)?;
 
     // Object の PartialEq を利用している．
     Ok(Object::Bool(left == right))
 }
-fn not(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn not(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("notの引数が1以外.".to_string()));
     }
     let left = args.get(0).unwrap();
-    let left = eval(left.clone(), env)?;
+    let left = eval(left, env)?;
     match left {
         Object::Bool(b) => Ok(Object::Bool(!b)),
         _ => Ok(Object::Bool(false)),
     }
 }
-fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn if_exp(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     // (if cond conseq alt )
     // (if cond conseq)
     if !(args.len() == 2 || args.len() == 3) {
@@ -342,12 +342,12 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         ));
     }
     let cond = args.get(0).unwrap();
-    let cond = eval(cond.clone(), env)?;
+    let cond = eval(cond, env)?;
     match cond {
         Object::Bool(b) => {
             if b {
                 let conseq = args.get(1).unwrap();
-                let conseq = eval(conseq.clone(), env)?;
+                let conseq = eval(conseq, env)?;
                 Ok(conseq)
             } else {
                 // false
@@ -355,7 +355,7 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     Ok(Object::Undef)
                 } else {
                     let alt = args.get(2).unwrap();
-                    let alt = eval(alt.clone(), env)?;
+                    let alt = eval(alt, env)?;
                     Ok(alt)
                 }
             }
@@ -363,12 +363,12 @@ fn if_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
         //   cond に bool 式以外の場合は true扱い
         _ => {
             let conseq = args.get(1).unwrap();
-            let conseq = eval(conseq.clone(), env)?;
+            let conseq = eval(conseq, env)?;
             Ok(conseq)
         }
     }
 }
-fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn cond(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     // (cond (exp exp) (exp exp) (else exp))
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("cond式の引数が0.".to_string()));
@@ -395,17 +395,17 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                     Unit::Bare(Atom::App("else")) => {
                         // (else xxx)は無条件に実行
                         let second = v.get(1).unwrap();
-                        result = eval(second.clone(), env)?;
+                        result = eval(second, env)?;
                         break;
                     }
                     _ => {
-                        let first = eval(first.clone(), env)?;
+                        let first = eval(first, env)?;
                         if let Object::Bool(false) = first {
                             // 何もしない (continue)
                             // schemeの condは 条件がfalseだとパス．それ以外はevalとなる
                         } else {
                             let second = v.get(1).unwrap();
-                            result = eval(second.clone(), env)?;
+                            result = eval(second, env)?;
                             break;
                         }
                     }
@@ -416,7 +416,7 @@ fn cond(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     Ok(result)
 }
 
-fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn let_exp(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let式の形式不正. (let)".to_string(),
@@ -461,11 +461,11 @@ fn let_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
             } else {
                 Some(args[1..].to_vec())
             };
-            eval_closure(params, block, env.clone(), values, env)
+            eval_closure(params, block, env.clone(), &values, env)
         }
     }
 }
-fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn leta_exp(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let*式の形式不正. (let*)".to_string(),
@@ -499,7 +499,7 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
                         if let Unit::Bare(Atom::Ident(key)) = sym {
-                            let value = eval(value.clone(), &leta_env)?;
+                            let value = eval(value, &leta_env)?;
                             // 束縛した環境を1つずつ追加していく
                             let inner = new_env(HashMap::new());
                             set_value(&inner, key, value);
@@ -514,13 +514,13 @@ fn leta_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 Ok(Object::Num(Number::Int(0)))
             } else {
                 let block = args[1..].to_vec();
-                eval_block(block, &leta_env)
+                eval_block(&block, &leta_env)
             }
         }
     }
 }
 
-fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn letrec_exp(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "letrec式の形式不正. (letrec)".to_string(),
@@ -554,7 +554,7 @@ fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
                         if let Unit::Bare(Atom::Ident(key)) = sym {
-                            let value = eval(value.clone(), &letrec_env)?;
+                            let value = eval(value, &letrec_env)?;
                             set_value(&letrec_env, key, value);
                         }
                     }
@@ -564,14 +564,14 @@ fn letrec_exp(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
                 // (letrec (...) )
                 Ok(Object::Num(Number::Int(0)))
             } else {
-                let block = args[1..].to_vec();
+                let block = &args[1..];
                 eval_block(block, &letrec_env)
             }
         }
     }
 }
 
-fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn lambda(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "lambda式の形式不正. (lambda)".to_string(),
@@ -600,12 +600,12 @@ fn lambda(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
     }
 }
 
-fn is_zero(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn is_zero(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("zero? require 1 arg.".to_string()));
     }
     let value = args.get(0).unwrap();
-    let value = eval(value.clone(), env)?;
+    let value = eval(value, env)?;
     match value {
         Object::Num(n) => Ok(Object::Bool(n.is_zero())),
         _ => Err(EvalError::InvalidSyntax(
@@ -618,7 +618,7 @@ fn eval_closure(
     params: Vec<Unit>,
     block: Option<Vec<Unit>>,
     closed_env: RefEnv,
-    args: Vec<Unit>,
+    args: &[Unit],
     env: &RefEnv,
 ) -> Result<Object, EvalError> {
     if params.len() != args.len() {
@@ -631,22 +631,22 @@ fn eval_closure(
         Some(block) => {
             // argumentの評価
             let caller_env = new_env(HashMap::new());
-            for (param, arg) in params.into_iter().zip(args.into_iter()) {
+            for (param, arg) in params.iter().zip(args.iter()) {
                 if let Unit::Bare(Atom::Ident(key)) = param {
-                    let arg = eval(arg.clone(), env)?;
+                    let arg = eval(arg, env)?;
                     set_value(&caller_env, &key, arg);
                 }
             }
             add_outer(&caller_env, &closed_env);
-            eval_block(block, &caller_env)
+            eval_block(&block, &caller_env)
         }
     }
 }
 
 // 複文の評価
-fn eval_block(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
+fn eval_block(args: &[Unit], env: &RefEnv) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
-    for a in args.into_iter() {
+    for a in args.iter() {
         result = eval(a, env)?;
     }
     Ok(result)
@@ -654,7 +654,7 @@ fn eval_block(args: Vec<Unit>, env: &RefEnv) -> Result<Object, EvalError> {
 
 // (< 1 2 3 4) とか
 fn evam_cmp(
-    args: Vec<Unit>,
+    args: &[Unit],
     cmp: fn(Number, Number) -> bool,
     env: &RefEnv,
 ) -> Result<Object, EvalError> {
@@ -674,9 +674,9 @@ fn evam_cmp(
 }
 
 // Number型を要求する引数をNumber型のVectorに変換
-fn to_num_vec(args: Vec<Unit>, env: &RefEnv) -> Result<Vec<Number>, EvalError> {
+fn to_num_vec(args: &[Unit], env: &RefEnv) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
-    for n in args.into_iter() {
+    for n in args.iter() {
         let obj = eval(n, env)?;
         if let Object::Num(n) = obj {
             v.push(n);

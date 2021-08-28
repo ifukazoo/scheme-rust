@@ -29,7 +29,7 @@ pub fn start<R: Read, W: Write>(
             }
         };
         match parser::parse_program(lex_result) {
-            Ok(program) => match eval::eval(program, &env) {
+            Ok(program) => match eval::eval(&program, &env) {
                 Ok(obj) => {
                     writer.write_all(format!("{}\n", obj).as_bytes())?;
                 }

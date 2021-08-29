@@ -419,7 +419,7 @@ mod test {
             let token = lex(input).unwrap();
             let elements = parse_program(token).unwrap();
             let env = new_env(HashMap::new());
-            let obj = eval(elements, &env).unwrap();
+            let obj = eval(&elements, &env).unwrap();
             assert_eq!(expected, format!("{}", obj))
         }
     }

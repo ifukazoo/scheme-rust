@@ -4,26 +4,26 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// 環境参照
-pub type RefEnv = Rc<RefCell<Environment>>;
+pub type Env = Rc<RefCell<ObjMap>>;
 
 /// 環境のマップ
 #[derive(Debug)]
-pub struct Environment {
+pub struct ObjMap {
     map: HashMap<String, Object>,
-    outer: Option<RefEnv>,
+    outer: Option<Env>,
 }
 /// 新しい環境作成
-pub fn new_env(map: HashMap<String, Object>) -> RefEnv {
-    Rc::new(RefCell::new(Environment { map, outer: None }))
+pub fn new_env(map: HashMap<String, Object>) -> Env {
+    Rc::new(RefCell::new(ObjMap { map, outer: None }))
 }
 
 /// 値の格納
-pub fn set_value(env: &RefEnv, key: &str, value: Object) {
+pub fn set_value(env: &Env, key: &str, value: Object) {
     env.borrow_mut().map.insert(key.to_string(), value);
 }
 
 /// 値の取得
-pub fn get_value(env: &RefEnv, key: &str) -> Option<Object> {
+pub fn get_value(env: &Env, key: &str) -> Option<Object> {
     match env.borrow().map.get(key) {
         Some(v) => Some(v.clone()),
         // 外の環境を一階層再帰的に参照
@@ -35,12 +35,12 @@ pub fn get_value(env: &RefEnv, key: &str) -> Option<Object> {
 }
 
 /// この環境の外側に一階層環境を追加する.
-pub fn add_outer(inner: &RefEnv, outer_env: &RefEnv) {
+pub fn add_outer(inner: &Env, outer_env: &Env) {
     inner.borrow_mut().outer = Some(outer_env.clone());
 }
 
 /// 2つの環境が同じものであるか
-pub fn equals(lhs: &RefEnv, rhs: &RefEnv) -> bool {
+pub fn equals(lhs: &Env, rhs: &Env) -> bool {
     let lenv = lhs.borrow();
     let renv = rhs.borrow();
 

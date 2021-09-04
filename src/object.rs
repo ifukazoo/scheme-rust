@@ -1,6 +1,6 @@
 extern crate num;
 use crate::env;
-use crate::env::RefEnv;
+use crate::env::Env;
 use crate::parser::Unit;
 use num::rational::{Ratio, Rational64};
 use num::Zero;
@@ -18,7 +18,7 @@ pub enum Object {
     /// ペア
     Pair(Box<Object>, Box<Object>),
     /// クロージャー. param, block, env
-    Procedure(Vec<Unit>, Option<Vec<Unit>>, RefEnv),
+    Procedure(Vec<Unit>, Option<Vec<Unit>>, Env),
     /// サブルーチン
     Subr(&'static str),
     /// nil

@@ -5,7 +5,6 @@ use crate::object::*;
 use crate::parser::Atom;
 use crate::parser::Unit;
 use num::Zero;
-use std::collections::HashMap;
 use std::fmt;
 
 // 評価時エラー
@@ -43,7 +42,7 @@ impl fmt::Display for EvalError {
 }
 
 pub fn eval_program(element: Unit) -> Result<Object, EvalError> {
-    let env = new_env(HashMap::new());
+    let env = new_env();
     eval(&element, &env)
 }
 
@@ -501,7 +500,7 @@ fn leta_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
                         if let Unit::Bare(Atom::Ident(key)) = sym {
                             let value = eval(value, &leta_env)?;
                             // 束縛した環境を1つずつ追加していく
-                            let inner = new_env(HashMap::new());
+                            let inner = new_env();
                             set_value(&inner, key, value);
                             add_outer(&inner, &leta_env);
                             leta_env = inner;
@@ -630,7 +629,7 @@ fn eval_closure(
         None => Ok(Object::Num(Number::Int(0))),
         Some(block) => {
             // argumentの評価
-            let caller_env = new_env(HashMap::new());
+            let caller_env = new_env();
             for (param, arg) in params.iter().zip(args.iter()) {
                 if let Unit::Bare(Atom::Ident(key)) = param {
                     let arg = eval(arg, env)?;

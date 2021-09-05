@@ -1,5 +1,4 @@
 use crate::*;
-use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -11,7 +10,7 @@ pub fn start<R: Read, W: Write>(
     mut writer: BufWriter<W>,
 ) -> std::io::Result<()> {
     let prompt = ">>";
-    let env = env::new_env(HashMap::new());
+    let env = env::new_env();
     loop {
         writer.write_all(prompt.as_bytes())?;
         writer.flush()?;

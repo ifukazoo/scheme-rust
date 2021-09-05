@@ -404,7 +404,6 @@ mod test {
         use super::super::eval::*;
         use super::super::lexer::*;
         use super::super::parser::*;
-        use std::collections::HashMap;
 
         let tests = vec![
             ("(cons 1 2)", "(1 . 2)"),
@@ -418,7 +417,7 @@ mod test {
         for (input, expected) in tests.into_iter() {
             let token = lex(input).unwrap();
             let elements = parse_program(token).unwrap();
-            let env = new_env(HashMap::new());
+            let env = new_env();
             let obj = eval(&elements, &env).unwrap();
             assert_eq!(expected, format!("{}", obj))
         }
@@ -510,10 +509,9 @@ mod test {
         use crate::parser::Atom;
         use crate::parser::Atom::*;
         use crate::parser::Unit::*;
-        use std::collections::HashMap;
         use Object::*;
-        let env_a = env::new_env(HashMap::new());
-        let env_b = env::new_env(HashMap::new());
+        let env_a = env::new_env();
+        let env_b = env::new_env();
         let param_a = vec![Bare(Ident("a".to_string()))];
         let param_b = vec![Bare(Ident("a".to_string()))];
         let param_c = vec![Bare(Ident("c".to_string()))];

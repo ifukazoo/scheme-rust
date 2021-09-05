@@ -13,7 +13,8 @@ pub struct ObjMap {
     outer: Option<Env>,
 }
 /// 新しい環境作成
-pub fn new_env(map: HashMap<String, Object>) -> Env {
+pub fn new_env() -> Env {
+    let map = HashMap::new();
     Rc::new(RefCell::new(ObjMap { map, outer: None }))
 }
 
@@ -68,7 +69,7 @@ mod test {
     use super::*;
     #[test]
     fn test_get_get_set() {
-        let e = new_env(HashMap::new());
+        let e = new_env();
         set_value(&e, "key_bool", Object::Bool(true));
         assert_eq!(get_value(&e, "key_bool").unwrap(), Object::Bool(true));
 
@@ -83,20 +84,18 @@ mod test {
 
     #[test]
     fn test_set_outer() {
-        let mut g = HashMap::new();
-        g.insert("TRUE".to_string(), Object::Bool(true));
-        let global = new_env(g);
+        let global = new_env();
+        set_value(&global, "TRUE", Object::Bool(true));
 
-        let mut n = HashMap::new();
-        n.insert("true".to_string(), Object::Bool(true));
-        let local = new_env(n);
+        let local = new_env();
+        set_value(&local, "TRUE", Object::Bool(true));
         add_outer(&local, &global);
         assert_eq!(get_value(&local, "TRUE").unwrap(), Object::Bool(true));
     }
 
     #[test]
     fn test_equals() {
-        let e = new_env(HashMap::new());
+        let e = new_env();
         set_value(&e, "key1", Object::Bool(true));
         let e2 = e.clone();
         assert_eq!(true, equals(&e, &e2));
@@ -104,7 +103,7 @@ mod test {
         set_value(&e, "key2", Object::Bool(false));
         assert_eq!(true, equals(&e, &e2));
 
-        let f = new_env(HashMap::new());
+        let f = new_env();
         add_outer(&f, &e);
         assert_eq!(false, equals(&e, &f));
     }

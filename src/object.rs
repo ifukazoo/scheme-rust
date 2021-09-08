@@ -1,7 +1,7 @@
 extern crate num;
 use crate::env;
 use crate::env::Env;
-use crate::parser::Unit;
+use crate::parser::Element;
 use num::rational::{Ratio, Rational64};
 use num::Zero;
 use std::fmt;
@@ -18,7 +18,7 @@ pub enum Object {
     /// ペア
     Pair(Box<Object>, Box<Object>),
     /// クロージャー. param, block, env
-    Procedure(Vec<Unit>, Option<Vec<Unit>>, Env),
+    Procedure(Vec<Element>, Option<Vec<Element>>, Env),
     /// サブルーチン
     Subr(&'static str),
     /// nil
@@ -131,7 +131,7 @@ fn to_string_pair_2nd(second: Object, collecting: &mut String) {
         }
     }
 }
-fn to_string_closure(params: &[Unit]) -> String {
+fn to_string_closure(params: &[Element]) -> String {
     let mut ps = String::new();
     for p in params {
         ps.push_str(&format!(" {}", &p));
@@ -508,7 +508,7 @@ mod test {
     fn test_partialeq_procedure() {
         use crate::parser::Atom;
         use crate::parser::Atom::*;
-        use crate::parser::Unit::*;
+        use crate::parser::Element::*;
         use Object::*;
         let env_a = env::new_env();
         let env_b = env::new_env();

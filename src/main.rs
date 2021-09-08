@@ -20,8 +20,8 @@ fn main() {
 pub fn run<R: Read>(mut reader: BufReader<R>) -> Result<Object, SRError> {
     let mut buf = String::new();
     reader.read_to_string(&mut buf)?;
-    let token = lexer::lex(&buf)?;
-    let element = parser::parse_program(token)?;
-    let obj = eval::eval_program(element)?;
+    let tokens = lexer::lex(&buf)?;
+    let elements = parser::parse_program(tokens)?;
+    let obj = eval::eval_program(elements)?;
     Ok(obj)
 }

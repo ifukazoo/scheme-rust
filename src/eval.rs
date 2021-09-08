@@ -3,7 +3,7 @@ use crate::env;
 use crate::env::*;
 use crate::object::*;
 use crate::parser::Atom;
-use crate::parser::Unit;
+use crate::parser::Element;
 use num::Zero;
 use std::fmt;
 
@@ -41,15 +41,15 @@ impl fmt::Display for EvalError {
     }
 }
 
-pub fn eval_program(element: Unit) -> Result<Object, EvalError> {
+pub fn eval_program(element: Element) -> Result<Object, EvalError> {
     let env = new_env();
     eval(&element, &env)
 }
 
-pub fn eval(element: &Unit, env: &Env) -> Result<Object, EvalError> {
+pub fn eval(element: &Element, env: &Env) -> Result<Object, EvalError> {
     match element {
-        Unit::Bare(a) => eval_atom(a, env),
-        Unit::Paren(v) => eval_paren(v, env),
+        Element::Bare(a) => eval_atom(a, env),
+        Element::Paren(v) => eval_paren(v, env),
     }
 }
 
@@ -64,16 +64,16 @@ pub fn eval_atom(atom: &Atom, env: &Env) -> Result<Object, EvalError> {
         Atom::App(a) => Ok(Object::Subr(a)),
     }
 }
-fn eval_paren(units: &Vec<Unit>, env: &Env) -> Result<Object, EvalError> {
-    if units.is_empty() {
+fn eval_paren(elements: &Vec<Element>, env: &Env) -> Result<Object, EvalError> {
+    if elements.is_empty() {
         Ok(Object::Nil)
     } else {
         // (op operand operand operand ...)
-        let op = &units[0];
-        let args = &units[1..];
+        let op = &elements[0];
+        let args = &elements[1..];
         match op {
             // ((lambda (a) a) 0)
-            Unit::Paren(p) => {
+            Element::Paren(p) => {
                 let f = eval_paren(p, env)?;
                 match f {
                     Object::Procedure(params, block, closed_env) => {
@@ -85,10 +85,10 @@ fn eval_paren(units: &Vec<Unit>, env: &Env) -> Result<Object, EvalError> {
             }
 
             // (+ 1 2), (define ), (lambda ) ,...
-            Unit::Bare(Atom::App(o)) => apply(o, args, env),
+            Element::Bare(Atom::App(o)) => apply(o, args, env),
 
             // (myfunc 1 2 3)
-            Unit::Bare(Atom::Ident(name)) => match get_value(env, name) {
+            Element::Bare(Atom::Ident(name)) => match get_value(env, name) {
                 None => Err(EvalError::UnboundVariable(name.to_string())),
                 Some(Object::Procedure(params, block, closed_env)) => {
                     eval_closure(params, block, closed_env, args, env)
@@ -97,12 +97,12 @@ fn eval_paren(units: &Vec<Unit>, env: &Env) -> Result<Object, EvalError> {
                 Some(_) => Err(EvalError::InvalidApplication(format!("{:?}", name))),
             },
 
-            Unit::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
+            Element::Bare(atom) => Err(EvalError::InvalidApplication(format!("{:?}", atom))),
         }
     }
 }
 
-fn apply(operation: &str, args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn apply(operation: &str, args: &[Element], env: &Env) -> Result<Object, EvalError> {
     match operation {
         "+" => add(args, env),
         "-" => sub(args, env),
@@ -130,17 +130,17 @@ fn apply(operation: &str, args: &[Unit], env: &Env) -> Result<Object, EvalError>
     }
 }
 
-fn add(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn add(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     let nums = to_num_vec(args, env)?;
     let acc = nums.into_iter().sum();
     Ok(Object::Num(acc))
 }
-fn mul(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn mul(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     let nums = to_num_vec(args, env)?;
     let acc = nums.into_iter().product();
     Ok(Object::Num(acc))
 }
-fn sub(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn sub(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     // 引き算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("引き算の引数が0.".to_string()));
@@ -155,7 +155,7 @@ fn sub(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         Ok(Object::Num(acc))
     }
 }
-fn div(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn div(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     // 除算は引数0はNG
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("割り算の引数が0.".to_string()));
@@ -182,14 +182,14 @@ fn div(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         Ok(Object::Num(acc))
     }
 }
-fn lt(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn lt(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     evam_cmp(args, |a, b| a < b, env)
 }
-fn gt(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn gt(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     evam_cmp(args, |a, b| a > b, env)
 }
 
-fn set(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn set(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax(
             "set!の引数の数が2でない.".to_string(),
@@ -197,12 +197,12 @@ fn set(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
     let symbol = match args.get(0).unwrap() {
         // (set! (+ 1 2) ...)
-        Unit::Paren(_) => {
+        Element::Paren(_) => {
             return Err(EvalError::InvalidSyntax(
                 "set!の1st引数がシンボルでない.".to_string(),
             ));
         }
-        Unit::Bare(a) => match a {
+        Element::Bare(a) => match a {
             // (set! 1 ...)
             Atom::Num(_) | Atom::Bool(_) => {
                 return Err(EvalError::InvalidSyntax(format!(
@@ -225,7 +225,7 @@ fn set(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     Ok(value)
 }
 
-fn define(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn define(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "defineの引数の数が1でない.".to_string(),
@@ -233,8 +233,8 @@ fn define(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
     let var = match args.get(0).unwrap() {
         // (define (+ 1 2) ...)
-        Unit::Paren(_) => return Err(EvalError::NotImplementedSyntax),
-        Unit::Bare(a) => match a {
+        Element::Paren(_) => return Err(EvalError::NotImplementedSyntax),
+        Element::Bare(a) => match a {
             // (define 1 ...)
             Atom::Num(_) | Atom::Bool(_) => {
                 return Err(EvalError::InvalidSyntax(format!(
@@ -264,7 +264,7 @@ fn define(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         Err(EvalError::InvalidSyntax("defineの引数が3以上.".to_string()))
     }
 }
-fn cons(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn cons(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax("consの引数が2以外.".to_string()));
     }
@@ -274,7 +274,7 @@ fn cons(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let rhs = eval(rhs, env)?;
     Ok(cons_pair(lhs, rhs))
 }
-fn car(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn car(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("carの引数が1以外".to_string()));
     }
@@ -287,7 +287,7 @@ fn car(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         )),
     }
 }
-fn cdr(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn cdr(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("cdrの引数が1以外.".to_string()));
     }
@@ -301,7 +301,7 @@ fn cdr(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
 }
 // (list exp exp exp)
-fn list(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn list(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     let mut o = Object::Nil;
     for arg in args.iter().rev() {
         let e = eval(arg, env)?;
@@ -309,7 +309,7 @@ fn list(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
     Ok(o)
 }
-fn equal(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn equal(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 2 {
         return Err(EvalError::InvalidSyntax("equal?の引数が2以外.".to_string()));
     }
@@ -321,7 +321,7 @@ fn equal(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     // Object の PartialEq を利用している．
     Ok(Object::Bool(left == right))
 }
-fn not(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn not(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("notの引数が1以外.".to_string()));
     }
@@ -332,7 +332,7 @@ fn not(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         _ => Ok(Object::Bool(false)),
     }
 }
-fn if_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn if_exp(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     // (if cond conseq alt )
     // (if cond conseq)
     if !(args.len() == 2 || args.len() == 3) {
@@ -367,7 +367,7 @@ fn if_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         }
     }
 }
-fn cond(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn cond(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     // (cond (exp exp) (exp exp) (else exp))
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax("cond式の引数が0.".to_string()));
@@ -377,12 +377,12 @@ fn cond(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let mut result = Object::Undef;
     for arg in args.iter() {
         match arg {
-            Unit::Bare(_) => {
+            Element::Bare(_) => {
                 return Err(EvalError::InvalidSyntax(
                     "cond式の節がかっこ形式でない.".to_string(),
                 ))
             }
-            Unit::Paren(v) => {
+            Element::Paren(v) => {
                 if v.len() != 2 {
                     // (cond (#t 1 3))
                     return Err(EvalError::InvalidSyntax(
@@ -391,7 +391,7 @@ fn cond(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
                 }
                 let first = v.get(0).unwrap();
                 match first {
-                    Unit::Bare(Atom::App("else")) => {
+                    Element::Bare(Atom::App("else")) => {
                         // (else xxx)は無条件に実行
                         let second = v.get(1).unwrap();
                         result = eval(second, env)?;
@@ -415,7 +415,7 @@ fn cond(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     Ok(result)
 }
 
-fn let_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn let_exp(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let式の形式不正. (let)".to_string(),
@@ -426,20 +426,20 @@ fn let_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let bind_stmt = args.get(0).unwrap();
     match bind_stmt {
         // (let a ())
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+        Element::Bare(_) => Err(EvalError::InvalidSyntax(
             "let式の形式不正. (let no_paren exp)".to_string(),
         )),
-        Unit::Paren(units) => {
+        Element::Paren(elements) => {
             let mut params = vec![];
             let mut values = vec![];
-            for unit in units {
-                match unit {
-                    Unit::Bare(_) => {
+            for element in elements {
+                match element {
+                    Element::Bare(_) => {
                         return Err(EvalError::InvalidSyntax(
                             "let式の形式不正. (let (no_paren (b 1)) exp)".to_string(),
                         ))
                     }
-                    Unit::Paren(sym_and_value) => {
+                    Element::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
                             return Err(EvalError::InvalidSyntax(
                                 "let式の形式不正. (let ((a param extra) (b param)) exp) "
@@ -464,7 +464,7 @@ fn let_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
         }
     }
 }
-fn leta_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn leta_exp(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "let*式の形式不正. (let*)".to_string(),
@@ -475,20 +475,20 @@ fn leta_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let bind_stmt = args.get(0).unwrap();
     match bind_stmt {
         // (let* a ())
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+        Element::Bare(_) => Err(EvalError::InvalidSyntax(
             "let*式の形式不正. (let* no_paren exp)".to_string(),
         )),
-        Unit::Paren(units) => {
+        Element::Paren(elements) => {
             let mut leta_env = env.clone();
             // 束縛部を順に評価する
-            for unit in units {
-                match unit {
-                    Unit::Bare(_) => {
+            for element in elements {
+                match element {
+                    Element::Bare(_) => {
                         return Err(EvalError::InvalidSyntax(
                             "let*式の形式不正. (let* (no_paren (b 1)) exp)".to_string(),
                         ))
                     }
-                    Unit::Paren(sym_and_value) => {
+                    Element::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
                             return Err(EvalError::InvalidSyntax(
                                 "let*式の形式不正. (let ((a param extra) (b param)) exp) "
@@ -497,7 +497,7 @@ fn leta_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
                         }
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
-                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                        if let Element::Bare(Atom::Ident(key)) = sym {
                             let value = eval(value, &leta_env)?;
                             // 束縛した環境を1つずつ追加していく
                             let inner = new_env();
@@ -519,7 +519,7 @@ fn leta_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
 }
 
-fn letrec_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn letrec_exp(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "letrec式の形式不正. (letrec)".to_string(),
@@ -530,20 +530,20 @@ fn letrec_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let bind_stmt = args.get(0).unwrap();
     match bind_stmt {
         // (letrec a ())
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+        Element::Bare(_) => Err(EvalError::InvalidSyntax(
             "letrec式の形式不正. (letrec no_paren exp)".to_string(),
         )),
-        Unit::Paren(units) => {
+        Element::Paren(elements) => {
             let letrec_env = env.clone();
             // 束縛部を順に評価する
-            for unit in units {
-                match unit {
-                    Unit::Bare(_) => {
+            for element in elements {
+                match element {
+                    Element::Bare(_) => {
                         return Err(EvalError::InvalidSyntax(
                             "letrec式の形式不正. (letrec (no_paren (b 1)) exp)".to_string(),
                         ))
                     }
-                    Unit::Paren(sym_and_value) => {
+                    Element::Paren(sym_and_value) => {
                         if sym_and_value.len() != 2 {
                             return Err(EvalError::InvalidSyntax(
                                 "letrec式の形式不正. (letrec ((a param extra) (b param)) exp) "
@@ -552,7 +552,7 @@ fn letrec_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
                         }
                         let sym = sym_and_value.get(0).unwrap();
                         let value = sym_and_value.get(1).unwrap();
-                        if let Unit::Bare(Atom::Ident(key)) = sym {
+                        if let Element::Bare(Atom::Ident(key)) = sym {
                             let value = eval(value, &letrec_env)?;
                             set_value(&letrec_env, key, value);
                         }
@@ -570,7 +570,7 @@ fn letrec_exp(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
 }
 
-fn lambda(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn lambda(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.is_empty() {
         return Err(EvalError::InvalidSyntax(
             "lambda式の形式不正. (lambda)".to_string(),
@@ -584,10 +584,10 @@ fn lambda(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     let first = args.get(0).unwrap();
     match first {
         // (lambda a)
-        Unit::Bare(_) => Err(EvalError::InvalidSyntax(
+        Element::Bare(_) => Err(EvalError::InvalidSyntax(
             "lambda式の形式不正. (lambda a)".to_string(),
         )),
-        Unit::Paren(params) => {
+        Element::Paren(params) => {
             if args.len() == 1 {
                 // (lambda (a b) )
                 Ok(Object::Procedure(params.clone(), None, env.clone()))
@@ -599,7 +599,7 @@ fn lambda(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
     }
 }
 
-fn is_zero(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn is_zero(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     if args.len() != 1 {
         return Err(EvalError::InvalidSyntax("zero? require 1 arg.".to_string()));
     }
@@ -614,10 +614,10 @@ fn is_zero(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
 }
 
 fn eval_closure(
-    params: Vec<Unit>,
-    block: Option<Vec<Unit>>,
+    params: Vec<Element>,
+    block: Option<Vec<Element>>,
     closed_env: Env,
-    args: &[Unit],
+    args: &[Element],
     env: &Env,
 ) -> Result<Object, EvalError> {
     if params.len() != args.len() {
@@ -631,7 +631,7 @@ fn eval_closure(
             // argumentの評価
             let caller_env = new_env();
             for (param, arg) in params.iter().zip(args.iter()) {
-                if let Unit::Bare(Atom::Ident(key)) = param {
+                if let Element::Bare(Atom::Ident(key)) = param {
                     let arg = eval(arg, env)?;
                     set_value(&caller_env, &key, arg);
                 }
@@ -643,7 +643,7 @@ fn eval_closure(
 }
 
 // 複文の評価
-fn eval_block(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
+fn eval_block(args: &[Element], env: &Env) -> Result<Object, EvalError> {
     let mut result = Object::Num(Number::Int(0));
     for a in args.iter() {
         result = eval(a, env)?;
@@ -653,7 +653,7 @@ fn eval_block(args: &[Unit], env: &Env) -> Result<Object, EvalError> {
 
 // (< 1 2 3 4) とか
 fn evam_cmp(
-    args: &[Unit],
+    args: &[Element],
     cmp: fn(Number, Number) -> bool,
     env: &Env,
 ) -> Result<Object, EvalError> {
@@ -673,7 +673,7 @@ fn evam_cmp(
 }
 
 // Number型を要求する引数をNumber型のVectorに変換
-fn to_num_vec(args: &[Unit], env: &Env) -> Result<Vec<Number>, EvalError> {
+fn to_num_vec(args: &[Element], env: &Env) -> Result<Vec<Number>, EvalError> {
     let mut v = vec![];
     for n in args.iter() {
         let obj = eval(n, env)?;

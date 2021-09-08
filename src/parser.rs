@@ -4,11 +4,11 @@ use std::iter::Peekable;
 
 /// プログラムの要素
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Unit {
+pub enum Element {
     // ()なし
     Bare(Atom),
     // ()あり
-    Paren(Vec<Unit>),
+    Paren(Vec<Element>),
 }
 
 /// Atom 分割できないもの
@@ -25,7 +25,7 @@ pub enum Atom {
     /// 識別子
     Ident(String),
 }
-impl fmt::Display for Unit {
+impl fmt::Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Bare(a) => match a {
@@ -34,11 +34,11 @@ impl fmt::Display for Unit {
                 Atom::Bool(b) => write!(f, "{}", b),
                 Atom::Ident(i) => write!(f, "{}", i),
             },
-            Self::Paren(units) => {
+            Self::Paren(elements) => {
                 let mut s = String::from("(");
                 let mut sep = String::from("");
-                for unit in units {
-                    s.push_str(&format!("{}{}", sep, unit));
+                for element in elements {
+                    s.push_str(&format!("{}{}", sep, element));
                     sep = " ".to_string();
                 }
                 s.push(')');
@@ -73,17 +73,17 @@ impl fmt::Display for ParseError {
 }
 
 /// 構文解析
-pub fn parse_program(tokens: Vec<Token>) -> Result<Unit, ParseError> {
+pub fn parse_program(tokens: Vec<Token>) -> Result<Element, ParseError> {
     let mut tokens = tokens.into_iter().peekable();
     if tokens.len() == 0 {
         Err(ParseError::EmptyProgram)
     } else if tokens.len() == 1 {
         let a = parse_atom(&mut tokens)?;
-        Ok(Unit::Bare(a))
+        Ok(Element::Bare(a))
     } else {
-        let units = parse_array(&mut tokens)?;
+        let elements = parse_array(&mut tokens)?;
         if tokens.peek().is_none() {
-            Ok(Unit::Paren(units))
+            Ok(Element::Paren(elements))
         } else {
             Err(ParseError::ExtraToken(tokens.next().unwrap()))
         }
@@ -129,24 +129,24 @@ where
 }
 
 // かっこに囲まれた複数要素の解析
-fn parse_array<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Vec<Unit>, ParseError>
+fn parse_array<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Vec<Element>, ParseError>
 where
     Tokens: Iterator<Item = Token>,
 {
     // `(`の刈り取り
     tokens.next().unwrap();
 
-    let mut units = vec![];
+    let mut elements = vec![];
     while let Some(e) = tokens.peek() {
         match e {
             Token::RPAREN => break,
             Token::LPAREN => {
-                let inner_units = parse_array(tokens)?;
-                units.push(Unit::Paren(inner_units));
+                let inner_elements = parse_array(tokens)?;
+                elements.push(Element::Paren(inner_elements));
             }
             _ => {
                 let atom = parse_atom(tokens)?;
-                units.push(Unit::Bare(atom));
+                elements.push(Element::Bare(atom));
             }
         }
     }
@@ -161,7 +161,7 @@ where
     } else {
         // `)`の刈り取り
         tokens.next().unwrap();
-        Ok(units)
+        Ok(elements)
     }
 }
 
@@ -173,42 +173,42 @@ mod test {
     #[test]
     fn test_parser() {
         let tests = vec![
-            ("1", Unit::Bare(Atom::Num(1))),
-            ("()", Unit::Paren(vec![])),
+            ("1", Element::Bare(Atom::Num(1))),
+            ("()", Element::Paren(vec![])),
             (
                 "(+ 1 2 )",
-                Unit::Paren(vec![
-                    Unit::Bare(Atom::App("+")),
-                    Unit::Bare(Atom::Num(1)),
-                    Unit::Bare(Atom::Num(2)),
+                Element::Paren(vec![
+                    Element::Bare(Atom::App("+")),
+                    Element::Bare(Atom::Num(1)),
+                    Element::Bare(Atom::Num(2)),
                 ]),
             ),
             (
                 "(+ 1 (+ 2 3 ))",
-                Unit::Paren(vec![
-                    Unit::Bare(Atom::App("+")),
-                    Unit::Bare(Atom::Num(1)),
-                    Unit::Paren(vec![
-                        Unit::Bare(Atom::App("+")),
-                        Unit::Bare(Atom::Num(2)),
-                        Unit::Bare(Atom::Num(3)),
+                Element::Paren(vec![
+                    Element::Bare(Atom::App("+")),
+                    Element::Bare(Atom::Num(1)),
+                    Element::Paren(vec![
+                        Element::Bare(Atom::App("+")),
+                        Element::Bare(Atom::Num(2)),
+                        Element::Bare(Atom::Num(3)),
                     ]),
                 ]),
             ),
-            ("+", Unit::Bare(Atom::App("+"))),
+            ("+", Element::Bare(Atom::App("+"))),
             (
                 "(begin (+ 2 1) (+ 2 3))",
-                Unit::Paren(vec![
-                    Unit::Bare(Atom::App("begin")),
-                    Unit::Paren(vec![
-                        Unit::Bare(Atom::App("+")),
-                        Unit::Bare(Atom::Num(2)),
-                        Unit::Bare(Atom::Num(1)),
+                Element::Paren(vec![
+                    Element::Bare(Atom::App("begin")),
+                    Element::Paren(vec![
+                        Element::Bare(Atom::App("+")),
+                        Element::Bare(Atom::Num(2)),
+                        Element::Bare(Atom::Num(1)),
                     ]),
-                    Unit::Paren(vec![
-                        Unit::Bare(Atom::App("+")),
-                        Unit::Bare(Atom::Num(2)),
-                        Unit::Bare(Atom::Num(3)),
+                    Element::Paren(vec![
+                        Element::Bare(Atom::App("+")),
+                        Element::Bare(Atom::Num(2)),
+                        Element::Bare(Atom::Num(3)),
                     ]),
                 ]),
             ),
@@ -217,11 +217,11 @@ mod test {
                 (begin
                     (define abc)
                 )"#,
-                Unit::Paren(vec![
-                    Unit::Bare(Atom::App("begin")),
-                    Unit::Paren(vec![
-                        Unit::Bare(Atom::App("define")),
-                        Unit::Bare(Atom::Ident("abc".to_string())),
+                Element::Paren(vec![
+                    Element::Bare(Atom::App("begin")),
+                    Element::Paren(vec![
+                        Element::Bare(Atom::App("define")),
+                        Element::Bare(Atom::Ident("abc".to_string())),
                     ]),
                 ]),
             ),
@@ -249,15 +249,15 @@ mod test {
         }
     }
     #[test]
-    fn test_unit_disp() {
+    fn test_element_disp() {
         let tests = vec![
-            (Unit::Bare(Atom::App("a")), "a"),
-            (Unit::Bare(Atom::Bool(true)), "true"),
+            (Element::Bare(Atom::App("a")), "a"),
+            (Element::Bare(Atom::Bool(true)), "true"),
             (
-                Unit::Paren(vec![
-                    Unit::Bare(Atom::App("list")),
-                    Unit::Bare(Atom::App("a")),
-                    Unit::Bare(Atom::Bool(true)),
+                Element::Paren(vec![
+                    Element::Bare(Atom::App("list")),
+                    Element::Bare(Atom::App("a")),
+                    Element::Bare(Atom::Bool(true)),
                 ]),
                 "(list a true)",
             ),
